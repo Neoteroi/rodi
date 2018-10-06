@@ -3,7 +3,11 @@ from setuptools import setup
 
 def readme():
     with open('README.md') as f:
-        return f.read()
+        contents = f.read()
+
+    # replace relative picture paths with absolute paths to GitHub
+    contents = contents.replace("](./", "](https://raw.githubusercontent.com/RobertoPrevato/rodi/master/")
+    return contents
 
 
 setup(name='rodi',
