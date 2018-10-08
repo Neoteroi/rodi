@@ -20,14 +20,14 @@ pip install rodi
 ## De gustibus non disputandum est
 This library is designed to work both by type hints in constructor signatures, and by constructor parameter names (convention over configuration), like described in below diagram. It can be useful for those who like type hinting, those who don't, and those who like having both options.
 
-![Usage option](./documentation/rodi-design-taste.png "Usage option")
+![Usage option](https://github.com/RobertoPrevato/rodi/blob/master/documentation/rodi-design-taste.png "Usage option")
 
 ## Minimum overhead
 `rodi` works by inspecting __&#95;&#95;init&#95;&#95;__ methods **once** at runtime, to generate functions that return instances of desired types. Validation steps, for example to detect circular dependencies or missing services, are done when building these functions, so additional validation is not needed when activating services.
 
 For this reason, services are first registered inside an instance of _ServiceCollection_ class, which implements a method _build&#95;provider()_ that returns an instance of _ServiceProvider_. The service provider is then used to obtain desired services by type or name. Inspection and validation steps are done only when creating an instance of service provider.
 
-![Classes](./documentation/classes.png "Classes")
+![Classes](https://github.com/RobertoPrevato/rodi/blob/master/documentation/classes.png "Classes")
 
 In the example below, a singleton is registered by exact instance.
 
