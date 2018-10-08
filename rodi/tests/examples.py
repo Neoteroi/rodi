@@ -171,6 +171,31 @@ class Foo:
         pass
 
 
+class UfoOne:
+
+    def __init__(self):
+        pass
+
+
+class UfoTwo:
+
+    def __init__(self, one: UfoOne):
+        self.one = one
+
+
+class UfoThree(UfoTwo):
+
+    def __init__(self, one: UfoOne, foo: Foo):
+        super().__init__(one)
+        self.foo = foo
+
+
+class UfoFour(UfoThree):
+
+    def __init__(self, one: UfoOne, foo: Foo):
+        super().__init__(one, foo)
+
+
 class TypeWithOptional:
 
     def __init__(self, foo: Optional[Foo]):
@@ -215,6 +240,11 @@ class Jang:
         self.jing = jing
 
 
+class Q:
+    def __init__(self):
+        pass
+
+
 class R:
     def __init__(self, p):
         self.p = p
@@ -244,3 +274,19 @@ class Z:
     def __init__(self, w):
         self.w = w
 
+
+class Ko:
+    def __init__(self):
+        pass
+
+
+class Ok:
+    def __init__(self):
+        pass
+
+
+class PrecedenceOfTypeHintsOverNames:
+
+    def __init__(self, foo: Q, ko: P):
+        self.q = foo
+        self.p = ko

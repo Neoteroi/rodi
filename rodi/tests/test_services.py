@@ -25,11 +25,19 @@ from rodi.tests.examples import (
     B,
     C,
     P,
+    Q,
     R,
     W,
     X,
     Y,
     Z,
+    UfoOne,
+    UfoTwo,
+    UfoThree,
+    UfoFour,
+    Ko,
+    Ok,
+    PrecedenceOfTypeHintsOverNames,
     Jing,
     Jang,
     ICircle,
@@ -582,3 +590,42 @@ def test_singleton_by_provider_both_singletons():
 
     r_2 = provider.get(R)
     assert r_2 is r
+
+
+def test_type_hints_precedence():
+    services = ServiceCollection()
+    services.add_exact_transient(PrecedenceOfTypeHintsOverNames)
+    services.add_exact_transient(Foo)
+    services.add_exact_transient(Q)
+    services.add_exact_transient(P)
+    services.add_exact_transient(Ko)
+    services.add_exact_transient(Ok)
+
+    provider = services.build_provider()
+
+    service = provider.get(PrecedenceOfTypeHintsOverNames)
+
+    assert isinstance(service, PrecedenceOfTypeHintsOverNames)
+    assert isinstance(service.q, Q)
+    assert isinstance(service.p, P)
+
+
+def test_proper_handling_of_inheritance():
+    services = ServiceCollection()
+    services.add_exact_transient(UfoOne)
+    services.add_exact_transient(UfoTwo)
+    services.add_exact_transient(UfoThree)
+    services.add_exact_transient(UfoFour)
+    services.add_exact_transient(Foo)
+
+    provider = services.build_provider()
+
+    ufo_one = provider.get(UfoOne)
+    ufo_two = provider.get(UfoTwo)
+    ufo_three = provider.get(UfoThree)
+    ufo_four = provider.get(UfoFour)
+
+    assert isinstance(ufo_one, UfoOne)
+    assert isinstance(ufo_two, UfoTwo)
+    assert isinstance(ufo_three, UfoThree)
+    assert isinstance(ufo_four, UfoFour)
