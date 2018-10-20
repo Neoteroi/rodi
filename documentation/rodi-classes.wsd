@@ -12,11 +12,11 @@ class ServiceCollection {
 	+add_exact_scoped(concrete_type)
 	..
 	+add_singleton_by_factory(factory, <color:royalBlue>optional</color> concrete_type)
-	+add_transient_by_factory(base_type, <color:royalBlue>optional</color> concrete_type)
-	+add_scoped_by_factory(base_type, <color:royalBlue>optional</color> concrete_type)
+	+add_transient_by_factory(factory, <color:royalBlue>optional</color> concrete_type)
+	+add_scoped_by_factory(factory, <color:royalBlue>optional</color> concrete_type)
 	..
 	+register(base_type, concrete_type, lifestyle)
-	+register_factory(factory, <color:royalBlue>optional</color>return_type)
+	+register_factory(factory, <color:royalBlue>optional</color> return_type)
 	..
 	+add_alias(name, desired_type)
 	+set_alias(name, desired_type)

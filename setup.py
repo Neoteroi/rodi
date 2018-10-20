@@ -3,15 +3,11 @@ from setuptools import setup
 
 def readme():
     with open('README.md') as f:
-        contents = f.read()
-
-    # replace relative picture paths with absolute paths to GitHub
-    contents = contents.replace("](./", "](https://raw.githubusercontent.com/RobertoPrevato/rodi/master/")
-    return contents
+        return f.read()
 
 
 setup(name='rodi',
-      version='1.0.0',
+      version='1.0.1',
       description='Implementation of dependency injection for Python 3',
       long_description=readme(),
       long_description_content_type='text/markdown',

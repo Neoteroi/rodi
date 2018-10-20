@@ -1,6 +1,7 @@
 import pytest
 from rodi import (
     ServiceCollection,
+    ServiceProvider,
     CircularDependencyException,
     OverridingServiceException,
     UnsupportedUnionTypeException,
@@ -465,7 +466,7 @@ def test_missing_service_returns_none():
     'add_transient_by_factory',
     'add_scoped_by_factory'
 ])
-def test_add_singleton_by_factory_type_annotation(method_name):
+def test_by_factory_type_annotation(method_name):
     services = ServiceCollection()
 
     def factory(_) -> Cat:
@@ -629,3 +630,187 @@ def test_proper_handling_of_inheritance():
     assert isinstance(ufo_two, UfoTwo)
     assert isinstance(ufo_three, UfoThree)
     assert isinstance(ufo_four, UfoFour)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_singleton_by_factory',
+    'add_transient_by_factory',
+    'add_scoped_by_factory'
+])
+def test_by_factory_with_different_parameters(method_name):
+
+    for option in {0, 1, 2}:
+        services = ServiceCollection()
+
+        if option == 0:
+            def factory() -> Cat:
+                return Cat('Celine')
+
+        if option == 1:
+            def factory(context) -> Cat:
+                assert isinstance(context, ServiceProvider)
+                return Cat('Celine')
+
+        if option == 2:
+            def factory(context, activating_type) -> Cat:
+                assert isinstance(context, ServiceProvider)
+                assert activating_type is Cat
+                return Cat('Celine')
+
+        method = getattr(services, method_name)
+        method(factory)
+
+        provider = services.build_provider()
+
+        cat = provider.get(Cat)
+
+        assert cat is not None
+        assert cat.name == 'Celine'
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory'
+])
+def test_factory_can_receive_activating_type_as_parameter(method_name):
+
+    class Logger:
+        def __init__(self, name):
+            self.name = name
+
+    class HelpController:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    class HomeController:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    class FooController:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    services = ServiceCollection()
+
+    def factory(_, activating_type) -> Logger:
+        return Logger(activating_type.__module__ + '.' + activating_type.__name__)
+
+    method = getattr(services, method_name)
+    method(factory)
+
+    services\
+        .add_exact_transient(HelpController)\
+        .add_exact_transient(HomeController)\
+        .add_exact_transient(FooController)
+
+    provider = services.build_provider()
+
+    help_controller = provider.get(HelpController)
+
+    assert help_controller is not None
+    assert help_controller.logger is not None
+    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
+
+    home_controller = provider.get(HomeController)
+
+    assert home_controller is not None
+    assert home_controller.logger is not None
+    assert home_controller.logger.name == 'rodi.tests.test_services.HomeController'
+
+    foo_controller = provider.get(FooController)
+
+    assert foo_controller is not None
+    assert foo_controller.logger is not None
+    assert foo_controller.logger.name == 'rodi.tests.test_services.FooController'
+
+
+def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
+    # NB: this scenario can only work when a class is registered as transient service
+
+    class Logger:
+        def __init__(self, name):
+            self.name = name
+
+    class HelpRepo:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    class HelpHandler:
+        def __init__(self, help_repo: HelpRepo):
+            self.repo = help_repo
+
+    class HelpController:
+        def __init__(self, logger: Logger, handler: HelpHandler):
+            self.logger = logger
+            self.handler = handler
+
+    services = ServiceCollection()
+
+    def factory(_, activating_type) -> Logger:
+        # NB: this scenario is tested for rolog library
+        return Logger(activating_type.__module__ + '.' + activating_type.__name__)
+
+    services.add_transient_by_factory(factory)
+
+    for service_type in {HelpRepo, HelpHandler, HelpController}:
+        services.add_exact_transient(service_type)
+
+    provider = services.build_provider()
+
+    help_controller = provider.get(HelpController)
+
+    assert help_controller is not None
+    assert help_controller.logger is not None
+    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
+    assert help_controller.handler.repo.logger.name == 'rodi.tests.test_services.HelpRepo'
+
+
+def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many():
+    # NB: this scenario can only work when a class is registered as transient service
+
+    class Logger:
+        def __init__(self, name):
+            self.name = name
+
+    class HelpRepo:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    class HelpHandler:
+        def __init__(self, help_repo: HelpRepo):
+            self.repo = help_repo
+
+    class AnotherPathTwo:
+        def __init__(self, logger: Logger):
+            self.logger = logger
+
+    class AnotherPath:
+        def __init__(self, another_path_2: AnotherPathTwo):
+            self.child = another_path_2
+
+    class HelpController:
+        def __init__(self, logger: Logger, handler: HelpHandler, another_path: AnotherPath):
+            self.logger = logger
+            self.handler = handler
+            self.other = another_path
+
+    services = ServiceCollection()
+
+    def factory(_, activating_type) -> Logger:
+        # NB: this scenario is tested for rolog library
+        return Logger(activating_type.__module__ + '.' + activating_type.__name__)
+
+    services.add_transient_by_factory(factory)
+
+    for service_type in {HelpRepo, HelpHandler, HelpController, AnotherPath, AnotherPathTwo}:
+        services.add_exact_transient(service_type)
+
+    provider = services.build_provider()
+
+    help_controller = provider.get(HelpController)
+
+    assert help_controller is not None
+    assert help_controller.logger is not None
+    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
+    assert help_controller.handler.repo.logger.name == 'rodi.tests.test_services.HelpRepo'
+    assert help_controller.other.child.logger.name == 'rodi.tests.test_services.AnotherPathTwo'

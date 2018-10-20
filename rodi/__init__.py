@@ -88,6 +88,19 @@ class MissingTypeException(DIException):
         super().__init__('Please specify the factory return type or annotate its return type; func() -> Foo:')
 
 
+class InvalidFactory(DIException):
+    """Exception risen when a factory is not valid"""
+
+    def __init__(self, _type):
+        super().__init__(f'The factory specified for type {_type.__name__} is not valid, '
+                         f'it must be a function with either these signatures: '
+                         f'def example_factory(context, type): '
+                         f'or,'
+                         f'def example_factory(context): '
+                         f'or,'
+                         f'def example_factory(): ')
+
+
 class ServiceLifeStyle(Enum):
     TRANSIENT = 1
     SCOPED = 2
@@ -95,11 +108,12 @@ class ServiceLifeStyle(Enum):
 
 
 class GetServiceContext:
-    __slots__ = ('scoped_services', 'provider')
+    __slots__ = ('scoped_services', 'provider', 'types_chain')
 
     def __init__(self, provider=None):
         self.provider = provider
         self.scoped_services = {}
+        self.types_chain = []
 
     def __enter__(self):
         if self.scoped_services is None:
@@ -109,9 +123,18 @@ class GetServiceContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dispose()
 
+    @property
+    def current_type(self):
+        try:
+            return self.types_chain[-1]
+        except IndexError:
+            return None
+
     def dispose(self):
         if self.provider:
             self.provider = None
+
+        del self.types_chain[:]
 
         if self.scoped_services:
             self.scoped_services.clear()
@@ -179,6 +202,7 @@ class ArgsTypeProvider:
         self._args_callbacks = args_callbacks
 
     def __call__(self, context):
+        context.types_chain.append(self._type)
         return self._type(*[fn(context) for fn in self._args_callbacks])
 
 
@@ -191,8 +215,8 @@ class FactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context):
-        return self.factory(context.provider)
+    def __call__(self, context: GetServiceContext):
+        return self.factory(context.provider, context.current_type)
 
 
 class SingletonFactoryTypeProvider:
@@ -205,9 +229,9 @@ class SingletonFactoryTypeProvider:
         self.factory = factory
         self.instance = None
 
-    def __call__(self, context):
+    def __call__(self, context: GetServiceContext):
         if self.instance is None:
-            self.instance = self.factory(context.provider)
+            self.instance = self.factory(context.provider, context.current_type)
         return self.instance
 
 
@@ -220,11 +244,11 @@ class ScopedFactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context):
+    def __call__(self, context: GetServiceContext):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        instance = self.factory(context)
+        instance = self.factory(context.provider, context.current_type)
         context.scoped_services[self._type] = instance
         return instance
 
@@ -237,6 +261,7 @@ class ScopedArgsTypeProvider:
         self._args_callbacks = args_callbacks
 
     def __call__(self, context: GetServiceContext):
+        context.types_chain.append(self._type)
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
@@ -254,6 +279,7 @@ class SingletonTypeProvider:
         self._instance = None
 
     def __call__(self, context):
+        context.types_chain.append(self._type)
         if not self._instance:
             self._instance = self._type(*[fn(context) for fn in self._args_callbacks]) \
                 if self._args_callbacks else self._type()
@@ -447,7 +473,30 @@ class ServiceProvider:
         if not reg:
             return None
 
+        context.types_chain.append(desired_type)
+
         return reg(context=context)
+
+
+class FactoryWrapperNoArgs:
+
+    __slots__ = ('factory',)
+
+    def __init__(self, factory):
+        self.factory = factory
+
+    def __call__(self, context, activating_type):
+        return self.factory()
+
+
+class FactoryWrapperContextArg:
+    __slots__ = ('factory',)
+
+    def __init__(self, factory):
+        self.factory = factory
+
+    def __call__(self, context, activating_type):
+        return self.factory(context)
 
 
 class ServiceCollection:
@@ -607,15 +656,34 @@ class ServiceCollection:
         self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
         return self
 
+    def _check_factory(self, factory, signature, handled_type):
+        if not callable(factory):
+            raise InvalidFactory(handled_type)
+
+        params_len = len(signature.parameters)
+
+        if params_len == 0:
+            return FactoryWrapperNoArgs(factory)
+
+        if params_len == 1:
+            return FactoryWrapperContextArg(factory)
+
+        if params_len == 2:
+            return factory
+
+        raise InvalidFactory(handled_type)
+
     def register_factory(self, factory, return_type, life_style):
         assert callable(factory)
-        if not return_type:
-            sign = Signature.from_callable(factory)
 
+        sign = Signature.from_callable(factory)
+        if not return_type:
             if sign.return_annotation is _empty:
                 raise MissingTypeException()
             return_type = sign.return_annotation
-        self._bind(return_type, FactoryResolver(return_type, factory, life_style))
+        self._bind(return_type, FactoryResolver(return_type,
+                                                self._check_factory(factory, sign, return_type),
+                                                life_style))
 
     def build_provider(self) -> ServiceProvider:
         """Builds and returns a service provider that can be used to activate and obtain services.
