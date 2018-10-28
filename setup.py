@@ -7,7 +7,7 @@ def readme():
 
 
 setup(name='rodi',
-      version='1.0.1',
+      version='1.0.2',
       description='Implementation of dependency injection for Python 3',
       long_description=readme(),
       long_description_content_type='text/markdown',

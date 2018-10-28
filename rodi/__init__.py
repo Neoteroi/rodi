@@ -113,7 +113,6 @@ class GetServiceContext:
     def __init__(self, provider=None):
         self.provider = provider
         self.scoped_services = {}
-        self.types_chain = []
 
     def __enter__(self):
         if self.scoped_services is None:
@@ -123,18 +122,9 @@ class GetServiceContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dispose()
 
-    @property
-    def current_type(self):
-        try:
-            return self.types_chain[-1]
-        except IndexError:
-            return None
-
     def dispose(self):
         if self.provider:
             self.provider = None
-
-        del self.types_chain[:]
 
         if self.scoped_services:
             self.scoped_services.clear()
@@ -165,7 +155,7 @@ class InstanceProvider:
     def __init__(self, instance):
         self.instance = instance
 
-    def __call__(self, context):
+    def __call__(self, context, parent_type):
         return self.instance
 
 
@@ -175,7 +165,7 @@ class TypeProvider:
     def __init__(self, _type):
         self._type = _type
 
-    def __call__(self, context):
+    def __call__(self, context, parent_type):
         return self._type()
 
 
@@ -185,7 +175,7 @@ class ScopedTypeProvider:
     def __init__(self, _type):
         self._type = _type
 
-    def __call__(self, context: GetServiceContext):
+    def __call__(self, context: GetServiceContext, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
@@ -201,9 +191,8 @@ class ArgsTypeProvider:
         self._type = _type
         self._args_callbacks = args_callbacks
 
-    def __call__(self, context):
-        context.types_chain.append(self._type)
-        return self._type(*[fn(context) for fn in self._args_callbacks])
+    def __call__(self, context, parent_type):
+        return self._type(*[fn(context, self._type) for fn in self._args_callbacks])
 
 
 class FactoryTypeProvider:
@@ -215,8 +204,8 @@ class FactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: GetServiceContext):
-        return self.factory(context.provider, context.current_type)
+    def __call__(self, context: GetServiceContext, parent_type):
+        return self.factory(context.provider, parent_type)
 
 
 class SingletonFactoryTypeProvider:
@@ -229,9 +218,9 @@ class SingletonFactoryTypeProvider:
         self.factory = factory
         self.instance = None
 
-    def __call__(self, context: GetServiceContext):
+    def __call__(self, context: GetServiceContext, parent_type):
         if self.instance is None:
-            self.instance = self.factory(context.provider, context.current_type)
+            self.instance = self.factory(context.provider, parent_type)
         return self.instance
 
 
@@ -244,11 +233,11 @@ class ScopedFactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: GetServiceContext):
+    def __call__(self, context: GetServiceContext, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        instance = self.factory(context.provider, context.current_type)
+        instance = self.factory(context.provider, parent_type)
         context.scoped_services[self._type] = instance
         return instance
 
@@ -260,12 +249,11 @@ class ScopedArgsTypeProvider:
         self._type = _type
         self._args_callbacks = args_callbacks
 
-    def __call__(self, context: GetServiceContext):
-        context.types_chain.append(self._type)
+    def __call__(self, context: GetServiceContext, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        service = self._type(*[fn(context) for fn in self._args_callbacks])
+        service = self._type(*[fn(context, parent_type) for fn in self._args_callbacks])
         context.scoped_services[self._type] = service
         return service
 
@@ -278,10 +266,9 @@ class SingletonTypeProvider:
         self._args_callbacks = _args_callbacks
         self._instance = None
 
-    def __call__(self, context):
-        context.types_chain.append(self._type)
+    def __call__(self, context, parent_type):
         if not self._instance:
-            self._instance = self._type(*[fn(context) for fn in self._args_callbacks]) \
+            self._instance = self._type(*[fn(context, parent_type) for fn in self._args_callbacks]) \
                 if self._args_callbacks else self._type()
 
         return self._instance
@@ -473,9 +460,7 @@ class ServiceProvider:
         if not reg:
             return None
 
-        context.types_chain.append(desired_type)
-
-        return reg(context=context)
+        return reg(context, desired_type)
 
 
 class FactoryWrapperNoArgs:

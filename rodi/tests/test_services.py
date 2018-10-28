@@ -687,10 +687,12 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
             self.logger = logger
 
     class FooController:
-        def __init__(self, logger: Logger):
+        def __init__(self, foo: Foo, logger: Logger):
+            self.foo = foo
             self.logger = logger
 
     services = ServiceCollection()
+    services.add_exact_transient(Foo)
 
     def factory(_, activating_type) -> Logger:
         return Logger(activating_type.__module__ + '.' + activating_type.__name__)
@@ -773,7 +775,8 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
             self.name = name
 
     class HelpRepo:
-        def __init__(self, logger: Logger):
+        def __init__(self, db_context: FooDBContext, logger: Logger):
+            self.db_context = db_context
             self.logger = logger
 
     class HelpHandler:
@@ -789,7 +792,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
             self.child = another_path_2
 
     class HelpController:
-        def __init__(self, logger: Logger, handler: HelpHandler, another_path: AnotherPath):
+        def __init__(self, handler: HelpHandler, another_path: AnotherPath, logger: Logger):
             self.logger = logger
             self.handler = handler
             self.other = another_path
@@ -802,7 +805,9 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
 
     services.add_transient_by_factory(factory)
 
-    for service_type in {HelpRepo, HelpHandler, HelpController, AnotherPath, AnotherPathTwo}:
+    services.add_instance(ServiceSettings('foo:foo'))
+
+    for service_type in {HelpRepo, HelpHandler, HelpController, AnotherPath, AnotherPathTwo, Foo, FooDBContext}:
         services.add_exact_transient(service_type)
 
     provider = services.build_provider()
