@@ -27,8 +27,17 @@ class ServiceCollection {
 }
 
 class ServiceProvider {
-  +get(type)
+	+get(type)
 	+get(type_name)
+	..
+	+__getitem__(type)
+	+__getitem__(type_name)
+	..
+	+set(type, value)
+	+set(type_name, value)
+	..
+	+__setitem__(type, value)
+	+__setitem__(type_name, value)
 }
 
 ServiceCollection -down-> ServiceProvider

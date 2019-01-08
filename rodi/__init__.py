@@ -439,11 +439,37 @@ class ServiceProvider:
 
     __slots__ = ('_map',)
 
-    def __init__(self, map):
-        self._map = map
+    def __init__(self, services_map=None):
+        if services_map is None:
+            services_map = {}
+        self._map = services_map
 
     def __contains__(self, item):
         return item in self._map
+
+    def __getitem__(self, item):
+        return self.get(item)
+
+    def __setitem__(self, key, value):
+        self.set(key, value)
+
+    def set(self, new_type: Union[type, str], value):
+        """
+        Sets a new service of desired type, as singleton.
+        This method exists to increase interoperability of ServiceProvider class (with dict).
+
+        :param new_type:
+        :param value:
+        :return:
+        """
+        if new_type in self._map or (not isinstance(new_type, str) and new_type.__name__ in self._map):
+            raise OverridingServiceException(self._map[new_type], new_type)
+
+        def resolver(context, desired_type):
+            return value
+        self._map[new_type] = resolver
+        if not isinstance(new_type, str):
+            self._map[new_type.__name__] = resolver
 
     def get(self, desired_type: Union[type, str], context: Optional[GetServiceContext] = None):
         """Gets a service of desired type, returning an activated instance.
@@ -455,12 +481,12 @@ class ServiceProvider:
         if context is None:
             context = GetServiceContext(self)
 
-        reg = self._map.get(desired_type)
+        resolver = self._map.get(desired_type)
 
-        if not reg:
+        if not resolver:
             return None
 
-        return reg(context, desired_type)
+        return resolver(context, desired_type)
 
 
 class FactoryWrapperNoArgs:
@@ -485,7 +511,7 @@ class FactoryWrapperContextArg:
 
 
 class ServiceCollection:
-    """Represents a configuration class for collection of services."""
+    """Represents a configuration class for a collection of services."""
 
     __slots__ = ('_map', '_aliases', '_exact_aliases', 'strict')
 

@@ -819,3 +819,77 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
     assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
     assert help_controller.handler.repo.logger.name == 'rodi.tests.test_services.HelpRepo'
     assert help_controller.other.child.logger.name == 'rodi.tests.test_services.AnotherPathTwo'
+
+
+def test_service_provider_supports_set_by_class():
+    provider = ServiceProvider()
+
+    singleton_cat = Cat('Celine')
+
+    provider.set(Cat, singleton_cat)
+
+    cat = provider.get(Cat)
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+    cat = provider.get('Cat')
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+
+def test_service_provider_supports_set_by_name():
+    provider = ServiceProvider()
+
+    singleton_cat = Cat('Celine')
+
+    provider.set('my_cat', singleton_cat)
+
+    cat = provider.get('my_cat')
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+
+def test_service_provider_supports_set_and_get_item_by_class():
+    provider = ServiceProvider()
+
+    singleton_cat = Cat('Celine')
+
+    provider[Cat] = singleton_cat
+
+    cat = provider[Cat]
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+    cat = provider['Cat']
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+
+def test_service_provider_supports_set_and_get_item_by_name():
+    provider = ServiceProvider()
+
+    singleton_cat = Cat('Celine')
+
+    provider['my_cat'] = singleton_cat
+
+    cat = provider['my_cat']
+
+    assert cat is not None
+    assert cat.name == "Celine"
+
+
+def test_service_provider_supports_set_simple_values():
+    provider = ServiceProvider()
+
+    provider['one'] = 10
+    provider['two'] = 12
+    provider['three'] = 16
+
+    assert provider['one'] == 10
+    assert provider['two'] == 12
+    assert provider['three'] == 16
