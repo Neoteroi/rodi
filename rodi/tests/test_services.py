@@ -1,7 +1,7 @@
 import pytest
 from rodi import (
-    ServiceCollection,
-    ServiceProvider,
+    Container,
+    Services,
     CircularDependencyException,
     OverridingServiceException,
     UnsupportedUnionTypeException,
@@ -53,7 +53,7 @@ from rodi.tests.examples import (
 
 
 def arrange_cats_example():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICatsRepository, FooDBCatsRepository)
     services.add_scoped(IRequestContext, RequestContext)
     services.add_exact_transient(GetCatRequestHandler)
@@ -76,7 +76,7 @@ def test_standard_param_name(value, expected_result):
 
 
 def test_singleton_by_instance():
-    services = ServiceCollection()
+    services = Container()
     services.add_instance(Cat('Celine'))
     provider = services.build_provider()
 
@@ -87,7 +87,7 @@ def test_singleton_by_instance():
 
 
 def test_transient_by_type_without_parameters():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICatsRepository, InMemoryCatsRepository)
     provider = services.build_provider()
     cats_repo = provider.get(ICatsRepository)
@@ -100,7 +100,7 @@ def test_transient_by_type_without_parameters():
 
 
 def test_transient_by_type_with_parameters():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICatsRepository, FooDBCatsRepository)
 
     # NB:
@@ -117,7 +117,7 @@ def test_transient_by_type_with_parameters():
 
 
 def test_raises_for_overriding_service():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICircle, Circle)
 
     with pytest.raises(OverridingServiceException) as context:
@@ -137,7 +137,7 @@ def test_raises_for_overriding_service():
 
 
 def test_raises_for_circular_dependency():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICircle, Circle)
 
     with pytest.raises(CircularDependencyException) as context:
@@ -147,7 +147,7 @@ def test_raises_for_circular_dependency():
 
 
 def test_raises_for_circular_dependency_with_dynamic_resolver():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(Jing)
     services.add_exact_transient(Jang)
 
@@ -156,7 +156,7 @@ def test_raises_for_circular_dependency_with_dynamic_resolver():
 
 
 def test_raises_for_deep_circular_dependency_with_dynamic_resolver():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(W)
     services.add_exact_transient(X)
     services.add_exact_transient(Y)
@@ -167,7 +167,7 @@ def test_raises_for_deep_circular_dependency_with_dynamic_resolver():
 
 
 def test_does_not_raise_for_deep_circular_dependency_with_one_factory():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(W)
     services.add_exact_transient(X)
     services.add_exact_transient(Y)
@@ -192,7 +192,7 @@ def test_circular_dependency_is_supported_by_factory():
     def get_jang(_) -> Jang:
         return Jang(None)
 
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(Jing)
     services.add_transient_by_factory(get_jang)
 
@@ -205,7 +205,7 @@ def test_circular_dependency_is_supported_by_factory():
 
 
 def test_add_instance_allows_for_circular_classes():
-    services = ServiceCollection()
+    services = Container()
     services.add_instance(Circle(Circle(None)))
 
     # NB: in this example, Shape requires a Circle
@@ -222,7 +222,7 @@ def test_add_instance_allows_for_circular_classes():
 
 
 def test_add_instance_with_declared_type():
-    services = ServiceCollection()
+    services = Container()
     services.add_instance(Circle(Circle(None)), declared_class=ICircle)
     provider = services.build_provider()
 
@@ -231,7 +231,7 @@ def test_add_instance_with_declared_type():
 
 
 def test_raises_for_optional_parameter():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(Foo)
     services.add_exact_transient(TypeWithOptional)
 
@@ -242,7 +242,7 @@ def test_raises_for_optional_parameter():
 
 
 def test_raises_for_nested_circular_dependency():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICircle, Circle)
     services.add_exact_transient(TrickyCircle)
 
@@ -253,7 +253,7 @@ def test_raises_for_nested_circular_dependency():
 
 
 def test_interdependencies():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(A)
     services.add_exact_transient(B)
     services.add_exact_transient(C)
@@ -269,7 +269,7 @@ def test_interdependencies():
 
 
 def test_transient_service():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICatsRepository, InMemoryCatsRepository)
     provider = services.build_provider()
 
@@ -281,7 +281,7 @@ def test_transient_service():
 
 
 def test_singleton_services():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_singleton(IdGetter)
     provider = services.build_provider()
 
@@ -298,7 +298,7 @@ def test_singleton_services():
 
 
 def test_transient_services():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(IdGetter)
     provider = services.build_provider()
 
@@ -317,7 +317,7 @@ def test_transient_services():
 
 
 def test_scoped_services():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_scoped(IdGetter)
     provider = services.build_provider()
 
@@ -334,7 +334,7 @@ def test_scoped_services():
 
 
 def test_resolution_by_parameter_name():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(ICatsRepository, InMemoryCatsRepository)
     services.add_exact_transient(ResolveThisByParameterName)
 
@@ -348,7 +348,7 @@ def test_resolution_by_parameter_name():
 
 
 def test_resolve_singleton_by_parameter_name():
-    services = ServiceCollection()
+    services = Container()
     services.add_transient(IByParamName, FooByParamName)
 
     singleton = Foo()
@@ -364,7 +364,7 @@ def test_resolve_singleton_by_parameter_name():
 
 
 def test_service_collection_contains():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(Foo)
 
     assert Foo in services
@@ -372,7 +372,7 @@ def test_service_collection_contains():
 
 
 def test_service_provider_contains():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(IdGetter)
 
     provider = services.build_provider()
@@ -455,7 +455,7 @@ def test_get_service_by_name_or_alias():
 
 
 def test_missing_service_returns_none():
-    services = ServiceCollection()
+    services = Container()
     provider = services.build_provider()
     service = provider.get('not_existing')
     assert service is None
@@ -467,7 +467,7 @@ def test_missing_service_returns_none():
     'add_scoped_by_factory'
 ])
 def test_by_factory_type_annotation(method_name):
-    services = ServiceCollection()
+    services = Container()
 
     def factory(_) -> Cat:
         return Cat('Celine')
@@ -508,7 +508,7 @@ def test_by_factory_type_annotation(method_name):
     'add_scoped_by_factory'
 ])
 def test_add_singleton_by_factory_given_type(method_name):
-    services = ServiceCollection()
+    services = Container()
 
     def factory(a):
         return Cat('Celine')
@@ -549,7 +549,7 @@ def test_add_singleton_by_factory_given_type(method_name):
     'add_scoped_by_factory'
 ])
 def test_add_singleton_by_factory_raises_for_missing_type(method_name):
-    services = ServiceCollection()
+    services = Container()
 
     def factory(_):
         return Cat('Celine')
@@ -561,7 +561,7 @@ def test_add_singleton_by_factory_raises_for_missing_type(method_name):
 
 
 def test_singleton_by_provider():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_singleton(P)
     services.add_exact_transient(R)
 
@@ -576,7 +576,7 @@ def test_singleton_by_provider():
 
 
 def test_singleton_by_provider_both_singletons():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_singleton(P)
     services.add_exact_singleton(R)
 
@@ -594,7 +594,7 @@ def test_singleton_by_provider_both_singletons():
 
 
 def test_type_hints_precedence():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(PrecedenceOfTypeHintsOverNames)
     services.add_exact_transient(Foo)
     services.add_exact_transient(Q)
@@ -612,7 +612,7 @@ def test_type_hints_precedence():
 
 
 def test_proper_handling_of_inheritance():
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(UfoOne)
     services.add_exact_transient(UfoTwo)
     services.add_exact_transient(UfoThree)
@@ -640,7 +640,7 @@ def test_proper_handling_of_inheritance():
 def test_by_factory_with_different_parameters(method_name):
 
     for option in {0, 1, 2}:
-        services = ServiceCollection()
+        services = Container()
 
         if option == 0:
             def factory() -> Cat:
@@ -648,12 +648,12 @@ def test_by_factory_with_different_parameters(method_name):
 
         if option == 1:
             def factory(context) -> Cat:
-                assert isinstance(context, ServiceProvider)
+                assert isinstance(context, Services)
                 return Cat('Celine')
 
         if option == 2:
             def factory(context, activating_type) -> Cat:
-                assert isinstance(context, ServiceProvider)
+                assert isinstance(context, Services)
                 assert activating_type is Cat
                 return Cat('Celine')
 
@@ -691,7 +691,7 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
             self.foo = foo
             self.logger = logger
 
-    services = ServiceCollection()
+    services = Container()
     services.add_exact_transient(Foo)
 
     def factory(_, activating_type) -> Logger:
@@ -746,7 +746,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
             self.logger = logger
             self.handler = handler
 
-    services = ServiceCollection()
+    services = Container()
 
     def factory(_, activating_type) -> Logger:
         # NB: this scenario is tested for rolog library
@@ -797,7 +797,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
             self.handler = handler
             self.other = another_path
 
-    services = ServiceCollection()
+    services = Container()
 
     def factory(_, activating_type) -> Logger:
         # NB: this scenario is tested for rolog library
@@ -822,7 +822,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
 
 
 def test_service_provider_supports_set_by_class():
-    provider = ServiceProvider()
+    provider = Services()
 
     singleton_cat = Cat('Celine')
 
@@ -840,7 +840,7 @@ def test_service_provider_supports_set_by_class():
 
 
 def test_service_provider_supports_set_by_name():
-    provider = ServiceProvider()
+    provider = Services()
 
     singleton_cat = Cat('Celine')
 
@@ -853,7 +853,7 @@ def test_service_provider_supports_set_by_name():
 
 
 def test_service_provider_supports_set_and_get_item_by_class():
-    provider = ServiceProvider()
+    provider = Services()
 
     singleton_cat = Cat('Celine')
 
@@ -871,7 +871,7 @@ def test_service_provider_supports_set_and_get_item_by_class():
 
 
 def test_service_provider_supports_set_and_get_item_by_name():
-    provider = ServiceProvider()
+    provider = Services()
 
     singleton_cat = Cat('Celine')
 
@@ -884,7 +884,7 @@ def test_service_provider_supports_set_and_get_item_by_name():
 
 
 def test_service_provider_supports_set_simple_values():
-    provider = ServiceProvider()
+    provider = Services()
 
     provider['one'] = 10
     provider['two'] = 12

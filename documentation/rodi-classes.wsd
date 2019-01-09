@@ -1,6 +1,6 @@
 @startuml classes
 
-class ServiceCollection {
+class Container {
 	+add_instance(instance, <color:royalBlue>optional</color> declared_type)
 	..
 	+add_singleton(base_type, concrete_type)
@@ -23,10 +23,10 @@ class ServiceCollection {
 	+add_aliases(mapping)
 	+set_aliases(mapping)
 	..
-	+ServiceProvider build_provider()
+	+Services build_provider()
 }
 
-class ServiceProvider {
+class Services {
 	+get(type)
 	+get(type_name)
 	..
@@ -40,6 +40,6 @@ class ServiceProvider {
 	+__setitem__(type_name, value)
 }
 
-ServiceCollection -down-> ServiceProvider
+Container -down-> Services
 
 @enduml

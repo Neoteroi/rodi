@@ -434,7 +434,7 @@ def to_standard_param_name(name):
     return value
 
 
-class ServiceProvider:
+class Services:
     """Provides methods to activate instances of classes, by cached callback functions."""
 
     __slots__ = ('_map',)
@@ -456,7 +456,7 @@ class ServiceProvider:
     def set(self, new_type: Union[type, str], value):
         """
         Sets a new service of desired type, as singleton.
-        This method exists to increase interoperability of ServiceProvider class (with dict).
+        This method exists to increase interoperability of Services class (with dict).
 
         :param new_type:
         :param value:
@@ -510,8 +510,8 @@ class FactoryWrapperContextArg:
         return self.factory(context)
 
 
-class ServiceCollection:
-    """Represents a configuration class for a collection of services."""
+class Container:
+    """Configuration class for a collection of services."""
 
     __slots__ = ('_map', '_aliases', '_exact_aliases', 'strict')
 
@@ -696,7 +696,7 @@ class ServiceCollection:
                                                 self._check_factory(factory, sign, return_type),
                                                 life_style))
 
-    def build_provider(self) -> ServiceProvider:
+    def build_provider(self) -> Services:
         """Builds and returns a service provider that can be used to activate and obtain services.
 
         The configuration of services is validated at this point, if any service cannot be instantiated
@@ -732,4 +732,4 @@ class ServiceCollection:
                 for name, _type in self._exact_aliases.items():
                     _map[name] = _map[_type]
 
-        return ServiceProvider(_map)
+        return Services(_map)
