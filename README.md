@@ -32,12 +32,12 @@ For this reason, services are first registered inside an instance of _Container_
 In the example below, a singleton is registered by exact instance.
 
 ```python
-services = Container()
-services.add_instance(Cat("Celine"))
+container = Container()
+container.add_instance(Cat("Celine"))
 
-provider = services.build_provider()  # --> validation, generation of functions
+services = container.build_provider()  # --> validation, generation of functions
 
-cat = provider.get(Cat)
+cat = services.get(Cat)
 
 assert cat is not None
 assert cat.name == "Celine"
