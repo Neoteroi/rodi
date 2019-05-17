@@ -1,3 +1,5 @@
+[![Build status](https://dev.azure.com/robertoprevato/rodi/_apis/build/status/rodi-CI)](https://dev.azure.com/robertoprevato/rodi/_build/latest?definitionId=8)
+
 # Implementation of dependency injection for Python 3
 
 **Features:**
@@ -60,3 +62,6 @@ pip install -r dev_requirements.txt
 # run tests using automatic discovery:
 pytest
 ```
+
+## Public project in Azure DevOps
+[https://dev.azure.com/robertoprevato/rodi](https://dev.azure.com/robertoprevato/rodi) - see here the project in Azure DevOps, with [builds](https://dev.azure.com/robertoprevato/rodi/_build?definitionId=8) and other goodness.
