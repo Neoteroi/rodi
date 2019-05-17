@@ -9,7 +9,7 @@ from rodi import (
     GetServiceContext,
     to_standard_param_name
 )
-from rodi.tests.examples import (
+from tests.examples import (
     ICatsRepository,
     GetCatRequestHandler,
     CatsController,
@@ -711,19 +711,19 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
 
     assert help_controller is not None
     assert help_controller.logger is not None
-    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
+    assert help_controller.logger.name == 'tests.test_services.HelpController'
 
     home_controller = provider.get(HomeController)
 
     assert home_controller is not None
     assert home_controller.logger is not None
-    assert home_controller.logger.name == 'rodi.tests.test_services.HomeController'
+    assert home_controller.logger.name == 'tests.test_services.HomeController'
 
     foo_controller = provider.get(FooController)
 
     assert foo_controller is not None
     assert foo_controller.logger is not None
-    assert foo_controller.logger.name == 'rodi.tests.test_services.FooController'
+    assert foo_controller.logger.name == 'tests.test_services.FooController'
 
 
 def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
@@ -763,8 +763,8 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
 
     assert help_controller is not None
     assert help_controller.logger is not None
-    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
-    assert help_controller.handler.repo.logger.name == 'rodi.tests.test_services.HelpRepo'
+    assert help_controller.logger.name == 'tests.test_services.HelpController'
+    assert help_controller.handler.repo.logger.name == 'tests.test_services.HelpRepo'
 
 
 def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many():
@@ -816,9 +816,9 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
 
     assert help_controller is not None
     assert help_controller.logger is not None
-    assert help_controller.logger.name == 'rodi.tests.test_services.HelpController'
-    assert help_controller.handler.repo.logger.name == 'rodi.tests.test_services.HelpRepo'
-    assert help_controller.other.child.logger.name == 'rodi.tests.test_services.AnotherPathTwo'
+    assert help_controller.logger.name == 'tests.test_services.HelpController'
+    assert help_controller.handler.repo.logger.name == 'tests.test_services.HelpRepo'
+    assert help_controller.other.child.logger.name == 'tests.test_services.AnotherPathTwo'
 
 
 def test_service_provider_supports_set_by_class():
