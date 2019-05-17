@@ -1,4 +1,4 @@
-[![Build status](https://dev.azure.com/robertoprevato/rodi/_apis/build/status/rodi-CI)](https://dev.azure.com/robertoprevato/rodi/_build/latest?definitionId=8)
+[![Build status](https://dev.azure.com/robertoprevato/rodi/_apis/build/status/rodi-CI)](https://dev.azure.com/robertoprevato/rodi/_build/latest?definitionId=8) [![pypi](https://robertoprevato.vsrm.visualstudio.com/_apis/public/Release/badge/06ceb1f2-6ca8-4981-97ca-14cc8b599bc7/1/2)](https://pypi.org/project/rodi/) [![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/rodi/8.svg)](https://robertoprevato.visualstudio.com/roconfiguration/_build?definitionId=8)
 
 # Implementation of dependency injection for Python 3
 
