@@ -1,5 +1,7 @@
 import pytest
 from pytest import raises
+from abc import ABC
+from typing import Type
 from rodi import (
     Container,
     Services,
@@ -8,6 +10,7 @@ from rodi import (
     UnsupportedUnionTypeException,
     MissingTypeException,
     GetServiceContext,
+    ResolveContext,
     to_standard_param_name,
     ClassNotDefiningInitMethod,
     InvalidFactory,
@@ -15,8 +18,8 @@ from rodi import (
     InvalidOperationInStrictMode,
     AliasAlreadyDefined,
     AliasConfigurationError,
-    AmbiguousReferenceName,
-    CannotResolveParameterException
+    CannotResolveParameterException,
+    InstanceResolver
 )
 from tests.examples import (
     ICatsRepository,
@@ -115,6 +118,23 @@ def test_transient_by_type_with_parameters():
     # NB:
     container.add_instance(ServiceSettings('foodb:example;something;'))
     container.add_exact_transient(FooDBContext)
+    provider = container.build_provider()
+
+    cats_repo = provider.get(ICatsRepository)
+
+    assert isinstance(cats_repo, FooDBCatsRepository)
+    assert isinstance(cats_repo.context, FooDBContext)
+    assert isinstance(cats_repo.context.settings, ServiceSettings)
+    assert cats_repo.context.connection_string == 'foodb:example;something;'
+
+
+def test_add_transient_shortcut():
+    container = Container()
+    container.add_transient(ICatsRepository, FooDBCatsRepository)
+
+    # NB:
+    container.add_instance(ServiceSettings('foodb:example;something;'))
+    container.add_transient(FooDBContext)
     provider = container.build_provider()
 
     cats_repo = provider.get(ICatsRepository)
@@ -306,6 +326,66 @@ def test_singleton_services():
     assert d is a
 
 
+def test_scoped_services_context_used_more_than_once():
+    container = Container()
+
+    class C:
+        def __init__(self):
+            pass
+
+    class B2:
+
+        def __init__(self, c: C):
+            self.c = c
+
+    class B1:
+        def __init__(self, c: C):
+            self.c = c
+
+    class A:
+
+        def __init__(self, b1: B1, b2: B2):
+            self.b1 = b1
+            self.b2 = b2
+
+    container.add_exact_scoped(C)
+    container.add_exact_transient(B1)
+    container.add_exact_transient(B2)
+    container.add_exact_transient(A)
+
+    provider = container.build_provider()
+
+    context = GetServiceContext(provider)
+
+    with context:
+        a = provider.get(A, context)
+        first_c = provider.get(C)
+        a.b1.c is first_c
+        a.b2.c is first_c
+
+    with context:
+        a = provider.get(A, context)
+        second_c = provider.get(C)
+        a.b1.c is second_c
+        a.b2.c is second_c
+
+    assert first_c is not None
+    assert second_c is not None
+    assert first_c is not second_c
+
+
+def test_scoped_services_context_used_more_than_once_manual_dispose():
+    container = Container()
+
+    container.add_instance('value')
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    context.dispose()
+    assert context.provider is None
+
+
 def test_transient_services():
     container = Container()
     container.add_exact_transient(IdGetter)
@@ -328,6 +408,23 @@ def test_transient_services():
 def test_scoped_services():
     container = Container()
     container.add_exact_scoped(IdGetter)
+    provider = container.build_provider()
+
+    with GetServiceContext() as context:
+        a = provider.get(IdGetter, context)
+        b = provider.get(IdGetter, context)
+        c = provider.get(IdGetter, context)
+    d = provider.get(IdGetter)
+
+    assert a is b
+    assert b is c
+    assert a is not d
+    assert b is not d
+
+
+def test_scoped_services_with_shortcut():
+    container = Container()
+    container.add_scoped(IdGetter)
     provider = container.build_provider()
 
     with GetServiceContext() as context:
@@ -516,6 +613,34 @@ def test_by_factory_type_annotation(method_name):
     'add_transient_by_factory',
     'add_scoped_by_factory'
 ])
+def test_invalid_factory_too_many_arguments_throws(method_name):
+    container = Container()
+    method = getattr(container, method_name)
+
+    def factory(context, activating_type, extra_argument_mistake):
+        return Cat('Celine')
+
+    with raises(InvalidFactory):
+        method(factory, Cat)
+
+    def factory(context, activating_type, extra_argument_mistake, two):
+        return Cat('Celine')
+
+    with raises(InvalidFactory):
+        method(factory, Cat)
+
+    def factory(context, activating_type, extra_argument_mistake, two, three):
+        return Cat('Celine')
+
+    with raises(InvalidFactory):
+        method(factory, Cat)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_singleton_by_factory',
+    'add_transient_by_factory',
+    'add_scoped_by_factory'
+])
 def test_add_singleton_by_factory_given_type(method_name):
     container = Container()
 
@@ -584,6 +709,21 @@ def test_singleton_by_provider():
     assert r.p is p
 
 
+def test_singleton_by_provider_with_shortcut():
+    container = Container()
+    container.add_singleton(P)
+    container.add_transient(R)
+
+    provider = container.build_provider()
+
+    p = provider.get(P)
+    r = provider.get(R)
+
+    assert p is not None
+    assert r is not None
+    assert r.p is p
+
+
 def test_singleton_by_provider_both_singletons():
     container = Container()
     container.add_exact_singleton(P)
@@ -610,6 +750,24 @@ def test_type_hints_precedence():
     container.add_exact_transient(P)
     container.add_exact_transient(Ko)
     container.add_exact_transient(Ok)
+
+    provider = container.build_provider()
+
+    service = provider.get(PrecedenceOfTypeHintsOverNames)
+
+    assert isinstance(service, PrecedenceOfTypeHintsOverNames)
+    assert isinstance(service.q, Q)
+    assert isinstance(service.p, P)
+
+
+def test_type_hints_precedence_with_shortcuts():
+    container = Container()
+    container.add_transient(PrecedenceOfTypeHintsOverNames)
+    container.add_transient(Foo)
+    container.add_transient(Q)
+    container.add_transient(P)
+    container.add_transient(Ko)
+    container.add_transient(Ok)
 
     provider = container.build_provider()
 
@@ -1047,3 +1205,404 @@ def test_build_provider_raises_for_missing_singleton_parameter():
 
     with raises(CannotResolveParameterException):
         container.build_provider()
+
+
+def test_overriding_alias_from_class_name_throws():
+    container = Container()
+
+    class A:
+        def __init__(self, b):
+            self.b = b
+
+    class B:
+        def __init__(self, c):
+            self.c = c
+
+    class C:
+        def __init__(self):
+            pass
+
+    container.add_exact_transient(A)
+    container.add_exact_transient(B)
+    container.add_exact_transient(C)
+
+    with raises(AliasAlreadyDefined):
+        container.add_alias('b', C)  # <-- ambiguity
+
+
+def test_cannot_resolve_parameter_in_strict_mode_throws():
+    container = Container(strict=True)
+
+    class A:
+        def __init__(self, b):
+            self.b = b
+
+    class B:
+        def __init__(self, c):
+            self.c = c
+
+    container.add_exact_transient(A)
+    container.add_exact_transient(B)
+
+    with raises(CannotResolveParameterException):
+        container.build_provider()
+
+
+def test_services_set_throws_if_service_is_already_defined():
+    services = Services()
+
+    services.set('example', {})
+
+    with raises(OverridingServiceException):
+        services.set('example', [])
+
+
+def test_scoped_services_exact():
+    container = Container()
+
+    class A:
+        def __init__(self, b):
+            self.b = b
+
+    class B:
+        def __init__(self, c):
+            self.c = c
+
+    class C:
+        def __init__(self):
+            pass
+
+    container.add_exact_scoped(A)
+    container.add_exact_scoped(B)
+    container.add_exact_scoped(C)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(A, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+    assert isinstance(a.b.c, C)
+
+    a2 = provider.get(A, context)
+    assert a is a2
+    assert a.b is a2.b
+    assert a.b.c is a2.b.c
+
+
+def test_scoped_services_abstract():
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class CBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self, c: CBase):
+            self.c = c
+
+    class C(CBase):
+        def __init__(self):
+            pass
+
+    container.add_scoped(ABase, A)
+    container.add_scoped(BBase, B)
+    container.add_scoped(CBase, C)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+    assert isinstance(a.b.c, C)
+
+    a2 = provider.get(ABase, context)
+    assert a is a2
+    assert a.b is a2.b
+    assert a.b.c is a2.b.c
+
+
+def test_instance_resolver_representation():
+    singleton = Foo()
+    resolver = InstanceResolver(singleton)
+
+    representation = repr(resolver)
+    assert representation.startswith('<Singleton ')
+    assert 'Foo' in representation
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_activating_transient_type_consistency(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self):
+            pass
+
+    def bbase_factory(context: Services, activating_type: Type) -> BBase:
+        assert isinstance(context, Services)
+        assert activating_type is A
+        return B()
+
+    container.add_transient(ABase, A)
+
+    method = getattr(container, method_name)
+    method(bbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_activating_scoped_type_consistency(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self):
+            pass
+
+    def bbase_factory(context: Services, activating_type: Type) -> BBase:
+        assert isinstance(context, Services)
+        assert activating_type is A
+        return B()
+
+    container.add_scoped(ABase, A)
+
+    method = getattr(container, method_name)
+    method(bbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_activating_singleton_type_consistency(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self):
+            pass
+
+    def bbase_factory(context: Services, activating_type: Type) -> BBase:
+        assert isinstance(context, Services)
+        assert activating_type is A
+        return B()
+
+    container.add_singleton(ABase, A)
+
+    method = getattr(container, method_name)
+    method(bbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_type_transient_consistency_nested(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class CBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self, c: CBase):
+            self.c = c
+
+    class C(CBase):
+        def __init__(self):
+            pass
+
+    def cbase_factory(context: Services, activating_type: Type) -> CBase:
+        assert isinstance(context, Services)
+        assert activating_type is B
+        return C()
+
+    container.add_transient(ABase, A)
+    container.add_transient(BBase, B)
+
+    method = getattr(container, method_name)
+    method(cbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+    assert isinstance(a.b.c, C)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_type_scoped_consistency_nested(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class CBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self, c: CBase):
+            self.c = c
+
+    class C(CBase):
+        def __init__(self):
+            pass
+
+    def cbase_factory(context: Services, activating_type: Type) -> CBase:
+        assert isinstance(context, Services)
+        assert activating_type is B
+        return C()
+
+    container.add_scoped(ABase, A)
+    container.add_scoped(BBase, B)
+
+    method = getattr(container, method_name)
+    method(cbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+    assert isinstance(a.b.c, C)
+
+
+@pytest.mark.parametrize('method_name', [
+    'add_transient_by_factory',
+    'add_scoped_by_factory',
+    'add_singleton_by_factory'
+])
+def test_factories_type_singleton_consistency_nested(method_name):
+    container = Container()
+
+    class ABase(ABC):
+        pass
+
+    class BBase(ABC):
+        pass
+
+    class CBase(ABC):
+        pass
+
+    class A(ABase):
+        def __init__(self, b: BBase):
+            self.b = b
+
+    class B(BBase):
+        def __init__(self, c: CBase):
+            self.c = c
+
+    class C(CBase):
+        def __init__(self):
+            pass
+
+    def cbase_factory(context: Services, activating_type: Type) -> CBase:
+        assert isinstance(context, Services)
+        assert activating_type is B
+        return C()
+
+    container.add_singleton(ABase, A)
+    container.add_singleton(BBase, B)
+
+    method = getattr(container, method_name)
+    method(cbase_factory)
+
+    provider = container.build_provider()
+    context = GetServiceContext(provider)
+
+    a = provider.get(ABase, context)
+    assert isinstance(a, A)
+    assert isinstance(a.b, B)
+    assert isinstance(a.b.c, C)

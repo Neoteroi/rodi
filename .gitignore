@@ -103,6 +103,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 .idea
+test-cov.xml
 test-output.xml
 
 */*.py,cover

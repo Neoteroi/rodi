@@ -1,8 +1,11 @@
 import re
 from enum import Enum
 from collections import defaultdict
-from typing import Optional, Union
+from typing import Optional, Union, Type, Any, Callable, Dict
 from inspect import Signature, isclass, isabstract, _empty
+
+
+AliasesTypeHint = Dict[str, Union[Type, str]]
 
 
 class DIException(Exception):
@@ -24,30 +27,12 @@ class CannotResolveParameterException(DIException):
         super().__init__(f"Unable to resolve parameter '{param_name}' when resolving '{desired_type.__name__}'")
 
 
-class AmbiguousReferenceName(DIException):
-    """Exception risen when it is not possible to resolve a type by name, due to ambiguity."""
-
-    def __init__(self, param_name, desired_type, aliases):
-        super().__init__(f"Ambiguous reference name for parameter '{param_name}' when resolving "
-                         f"'{desired_type.__name__}'. "
-                         f"Possible values for this parameter: {aliases}"
-                         f"Either specify parameter type or choose a unique name.")
-
-
 class UnsupportedUnionTypeException(DIException):
     """Exception risen when a parameter type is defined as Optional or Union of several types."""
 
     def __init__(self, param_name, desired_type):
         super().__init__(f"Union or Optional type declaration is not supported. "
                          f"Cannot resolve parameter '{param_name}' when resolving '{desired_type.__name__}'")
-
-
-class CannotResolveTypeException(DIException):
-    """Exception risen when it is not possible to resolve a type because it is not registered."""
-
-    def __init__(self, param_name, expected_type, desired_type):
-        super().__init__(f"Unable to resolve type with name '{param_name}' and type '{expected_type.__name__}' "
-                         f"when resolving '{desired_type.__name__}'")
 
 
 class OverridingServiceException(DIException):
@@ -260,7 +245,7 @@ class ScopedArgsTypeProvider:
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        service = self._type(*[fn(context, parent_type) for fn in self._args_callbacks])
+        service = self._type(*[fn(context, self._type) for fn in self._args_callbacks])
         context.scoped_services[self._type] = service
         return service
 
@@ -275,7 +260,7 @@ class SingletonTypeProvider:
 
     def __call__(self, context, parent_type):
         if not self._instance:
-            self._instance = self._type(*[fn(context, parent_type) for fn in self._args_callbacks]) \
+            self._instance = self._type(*[fn(context, self._type) for fn in self._args_callbacks]) \
                 if self._args_callbacks else self._type()
 
         return self._instance
@@ -320,8 +305,7 @@ class DynamicResolver:
             return context.resolved[desired_type]
 
         reg = self.services._map.get(desired_type)
-        if not reg:
-            return None
+        assert reg is not None, f'A resolver for type {desired_type.__name__} is not configured'
         return reg(context)
 
     def __call__(self, context: ResolveContext):
@@ -363,23 +347,21 @@ class DynamicResolver:
                 raise UnsupportedUnionTypeException(param_name, concrete_type)
 
             if param_type is _empty:
-                if not services.strict:
-                    # support for exact, user defined aliases, without ambiguity
-                    exact_alias = services._exact_aliases.get(param_name)
-
-                    if exact_alias:
-                        param_type = exact_alias
-                    else:
-                        aliases = services._aliases[param_name]
-
-                        if aliases:
-                            if len(aliases) > 1:
-                                raise AmbiguousReferenceName(param_name, concrete_type, aliases)
-
-                            for param_type in aliases:
-                                break
-                else:
+                if services.strict:
                     raise CannotResolveParameterException(param_name, concrete_type)
+
+                # support for exact, user defined aliases, without ambiguity
+                exact_alias = services._exact_aliases.get(param_name)
+
+                if exact_alias:
+                    param_type = exact_alias
+                else:
+                    aliases = services._aliases[param_name]
+
+                    if aliases:
+                        assert len(aliases) == 1, 'Configured aliases must not be ambiguous'
+                        for param_type in aliases:
+                            break
 
             if param_type not in services._map:
                 raise CannotResolveParameterException(param_name, concrete_type)
@@ -388,10 +370,6 @@ class DynamicResolver:
                 raise CircularDependencyException(chain[0], param_type)
 
             param_resolver = self._get_resolver(param_type, context)
-
-            if param_resolver is None:
-                raise CannotResolveTypeException(param_name, param_type, concrete_type)
-
             fns.append(param_resolver)
 
         if self.lifestyle == ServiceLifeStyle.SINGLETON:
@@ -496,6 +474,12 @@ class Services:
         return resolver(context, desired_type)
 
 
+FactoryCallableNoArguments = Callable[[], Any]
+FactoryCallableSingleArgument = Callable[[Services], Any]
+FactoryCallableTwoArgument = Callable[[Services, Type], Any]
+FactoryCallableType = Union[FactoryCallableNoArguments, FactoryCallableSingleArgument, FactoryCallableTwoArgument]
+
+
 class FactoryWrapperNoArgs:
 
     __slots__ = ('factory',)
@@ -522,7 +506,7 @@ class Container:
 
     __slots__ = ('_map', '_aliases', '_exact_aliases', 'strict')
 
-    def __init__(self, strict=False):
+    def __init__(self, strict: bool = False):
         self._map = {}
         self._aliases = None if strict else defaultdict(set)
         self._exact_aliases = None if strict else {}
@@ -531,14 +515,14 @@ class Container:
     def __contains__(self, key):
         return key in self._map
 
-    def register(self, base_type, concrete_type, lifestyle: ServiceLifeStyle):
+    def register(self, base_type: Type, concrete_type: Type, lifestyle: ServiceLifeStyle):
         assert issubclass(concrete_type, base_type), \
             f'Cannot register {base_type.__name__} for abstract class {concrete_type.__name__}'
 
         self._bind(base_type, DynamicResolver(concrete_type, self, lifestyle))
         return self
 
-    def add_alias(self, name, desired_type):
+    def add_alias(self, name: str, desired_type: Type):
         """Adds an alias to the set of inferred aliases.
 
         :param name: parameter name
@@ -552,7 +536,7 @@ class Container:
         self._aliases[name].add(desired_type)
         return self
 
-    def add_aliases(self, values):
+    def add_aliases(self, values: AliasesTypeHint):
         """Adds aliases to the set of inferred aliases.
 
         :param values: mapping object (parameter name: class)
@@ -562,7 +546,7 @@ class Container:
             self.add_alias(key, value)
         return self
 
-    def set_alias(self, name, desired_type, override=False):
+    def set_alias(self, name: str, desired_type: Type, override: bool = False):
         """Sets an exact alias for a desired type.
 
         :param name: parameter name
@@ -577,7 +561,7 @@ class Container:
         self._exact_aliases[name] = desired_type
         return self
 
-    def set_aliases(self, values, override=False):
+    def set_aliases(self, values: AliasesTypeHint, override: bool = False):
         """Sets many exact aliases for desired types.
 
         :param values: mapping object (parameter name: class)
@@ -588,17 +572,21 @@ class Container:
             self.set_alias(key, value, override)
         return self
 
-    def _bind(self, key, value):
+    def _bind(self, key: Type, value: Any):
         if key in self._map:
             raise OverridingServiceException(key, value)
         self._map[key] = value
 
         key_name = key.__name__
+
+        if self.strict:
+            return
+
         self._aliases[key_name].add(key)
         self._aliases[key_name.lower()].add(key)
         self._aliases[to_standard_param_name(key_name)].add(key)
 
-    def add_instance(self, instance, declared_class=None):
+    def add_instance(self, instance: Any, declared_class: Optional[Type] = None):
         """Registers an exact instance, optionally by declared class.
 
         :param instance: singleton to be registered
@@ -608,31 +596,46 @@ class Container:
         self._bind(instance.__class__ if not declared_class else declared_class, InstanceResolver(instance))
         return self
 
-    def add_singleton(self, base_type, concrete_type):
+    def add_singleton(self, base_type: Type, concrete_type: Optional[Type] = None):
         """Registers a type by base type, to be instantiated with singleton lifetime.
+        If a single type is given, the method `add_exact_singleton` is used.
 
+        :param base_type: registered type. If a concrete type is provided, it must inherit the base type.
         :param concrete_type: concrete class
         :return: the service collection itself
         """
+        if concrete_type is None:
+            return self.add_exact_singleton(base_type)
+
         return self.register(base_type, concrete_type, ServiceLifeStyle.SINGLETON)
 
-    def add_scoped(self, base_type, concrete_type):
+    def add_scoped(self, base_type: Type, concrete_type: Optional[Type] = None):
         """Registers a type by base type, to be instantiated with scoped lifetime.
+        If a single type is given, the method `add_exact_scoped` is used.
 
+        :param base_type: registered type. If a concrete type is provided, it must inherit the base type.
         :param concrete_type: concrete class
         :return: the service collection itself
         """
+        if concrete_type is None:
+            return self.add_exact_scoped(base_type)
+
         return self.register(base_type, concrete_type, ServiceLifeStyle.SCOPED)
 
-    def add_transient(self, base_type, concrete_type):
+    def add_transient(self, base_type: Type, concrete_type: Optional[Type] = None):
         """Registers a type by base type, to be instantiated with transient lifetime.
+        If a single type is given, the method `add_exact_transient` is used.
 
+        :param base_type: registered type. If a concrete type is provided, it must inherit the base type.
         :param concrete_type: concrete class
         :return: the service collection itself
         """
+        if concrete_type is None:
+            return self.add_exact_transient(base_type)
+
         return self.register(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
 
-    def add_exact_singleton(self, concrete_type):
+    def add_exact_singleton(self, concrete_type: Type):
         """Registers an exact type, to be instantiated with singleton lifetime.
 
         :param concrete_type: concrete class
@@ -642,7 +645,7 @@ class Container:
         self._bind(concrete_type, DynamicResolver(concrete_type, self, ServiceLifeStyle.SINGLETON))
         return self
 
-    def add_exact_scoped(self, concrete_type):
+    def add_exact_scoped(self, concrete_type: Type):
         """Registers an exact type, to be instantiated with scoped lifetime.
 
         :param concrete_type: concrete class
@@ -652,7 +655,7 @@ class Container:
         self._bind(concrete_type, DynamicResolver(concrete_type, self, ServiceLifeStyle.SCOPED))
         return self
 
-    def add_exact_transient(self, concrete_type):
+    def add_exact_transient(self, concrete_type: Type):
         """Registers an exact type, to be instantiated with transient lifetime.
 
         :param concrete_type: concrete class
@@ -662,21 +665,26 @@ class Container:
         self._bind(concrete_type, DynamicResolver(concrete_type, self, ServiceLifeStyle.TRANSIENT))
         return self
 
-    def add_singleton_by_factory(self, factory, return_type=None):
+    def add_singleton_by_factory(self,
+                                 factory: FactoryCallableType,
+                                 return_type: Optional[Type] = None):
         self.register_factory(factory, return_type, ServiceLifeStyle.SINGLETON)
         return self
 
-    def add_transient_by_factory(self, factory, return_type=None):
+    def add_transient_by_factory(self,
+                                 factory: FactoryCallableType,
+                                 return_type: Optional[Type] = None):
         self.register_factory(factory, return_type, ServiceLifeStyle.TRANSIENT)
         return self
 
-    def add_scoped_by_factory(self, factory, return_type=None):
+    def add_scoped_by_factory(self,
+                              factory: FactoryCallableType,
+                              return_type: Optional[Type] = None):
         self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
         return self
 
     def _check_factory(self, factory, signature, handled_type):
-        if not callable(factory):
-            raise InvalidFactory(handled_type)
+        assert callable(factory), 'The factory must be callable'
 
         params_len = len(signature.parameters)
 
@@ -691,7 +699,7 @@ class Container:
 
         raise InvalidFactory(handled_type)
 
-    def register_factory(self, factory, return_type, life_style):
+    def register_factory(self, factory: Callable, return_type: Type, life_style: ServiceLifeStyle):
         if not callable(factory):
             raise InvalidFactory(return_type)
 
@@ -717,8 +725,7 @@ class Container:
 
             for _type, resolver in self._map.items():
                 # NB: do not call resolver if one was already prepared for the type
-                if _type in context.resolved:
-                    continue
+                assert _type not in context.resolved, '_map keys must be unique'
 
                 if isinstance(resolver, DynamicResolver):
                     context.dynamic_chain.clear()
@@ -730,9 +737,6 @@ class Container:
             if not self.strict:
                 # include aliases in the map;
                 for name, _types in self._aliases.items():
-                    if len(_types) > 1:
-                        # ambiguous alias, ignore because an exception would have been already thrown by resolver()
-                        continue
                     for _type in _types:
                         break
                     _map[name] = self._get_alias_target_type(name, _map, _type)
