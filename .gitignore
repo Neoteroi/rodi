@@ -104,3 +104,5 @@ venv.bak/
 .mypy_cache/
 .idea
 test-output.xml
+
+*/*.py,cover

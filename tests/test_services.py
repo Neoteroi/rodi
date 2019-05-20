@@ -1,4 +1,5 @@
 import pytest
+from pytest import raises
 from rodi import (
     Container,
     Services,
@@ -7,7 +8,15 @@ from rodi import (
     UnsupportedUnionTypeException,
     MissingTypeException,
     GetServiceContext,
-    to_standard_param_name
+    to_standard_param_name,
+    ClassNotDefiningInitMethod,
+    InvalidFactory,
+    ServiceLifeStyle,
+    InvalidOperationInStrictMode,
+    AliasAlreadyDefined,
+    AliasConfigurationError,
+    AmbiguousReferenceName,
+    CannotResolveParameterException
 )
 from tests.examples import (
     ICatsRepository,
@@ -893,3 +902,148 @@ def test_service_provider_supports_set_simple_values():
     assert provider['one'] == 10
     assert provider['two'] == 12
     assert provider['three'] == 16
+
+
+def test_container_raises_for_class_without_init():
+    container = Container()
+
+    class WithoutInit:
+        pass
+
+    container.add_exact_singleton(WithoutInit)
+
+    with raises(ClassNotDefiningInitMethod):
+        container.build_provider()
+
+
+def test_raises_invalid_factory_for_non_callable():
+    container = Container()
+
+    with raises(InvalidFactory):
+        container.register_factory('Not a factory', Cat, ServiceLifeStyle.SINGLETON)
+
+
+def test_set_alias_raises_in_strict_mode():
+    container = Container(strict=True)
+
+    with raises(InvalidOperationInStrictMode):
+        container.set_alias('something', Cat)
+
+
+def test_set_alias_raises_if_alias_is_defined():
+    container = Container()
+
+    container.set_alias('something', Cat)
+
+    with raises(AliasAlreadyDefined):
+        container.set_alias('something', Foo)
+
+
+def test_set_alias_requires_configured_type():
+    container = Container()
+
+    container.set_alias('something', Cat)
+
+    with raises(AliasConfigurationError):
+        container.build_provider()
+
+
+def test_set_aliases():
+    container = Container()
+
+    container.add_instance(Cat('Celine'))
+    container.add_instance(Foo())
+
+    container.set_aliases({
+        'a': Cat,
+        'b': Foo
+    })
+
+    provider = container.build_provider()
+
+    x = provider.get('a')
+
+    assert isinstance(x, Cat)
+    assert x.name == 'Celine'
+
+    assert isinstance(provider.get('b'), Foo)
+
+
+def test_add_alias_raises_in_strict_mode():
+    container = Container(strict=True)
+
+    with raises(InvalidOperationInStrictMode):
+        container.add_alias('something', Cat)
+
+
+def test_add_alias_raises_if_alias_is_defined():
+    container = Container()
+
+    container.add_alias('something', Cat)
+
+    with raises(AliasAlreadyDefined):
+        container.add_alias('something', Foo)
+
+
+def test_add_aliases():
+    container = Container()
+
+    container.add_instance(Cat('Celine'))
+    container.add_instance(Foo())
+
+    container.add_aliases({
+        'a': Cat,
+        'b': Foo
+    })
+
+    container.add_aliases({
+        'c': Cat,
+        'd': Foo
+    })
+
+    provider = container.build_provider()
+
+    for alias in {'a', 'c'}:
+        x = provider.get(alias)
+
+        assert isinstance(x, Cat)
+        assert x.name == 'Celine'
+
+    for alias in {'b', 'd'}:
+        assert isinstance(provider.get(alias), Foo)
+
+
+def test_add_alias_requires_configured_type():
+    container = Container()
+
+    container.add_alias('something', Cat)
+
+    with raises(AliasConfigurationError):
+        container.build_provider()
+
+
+def test_build_provider_raises_for_missing_transient_parameter():
+    container = Container()
+
+    container.add_exact_transient(CatsController)
+
+    with raises(CannotResolveParameterException):
+        container.build_provider()
+
+
+def test_build_provider_raises_for_missing_scoped_parameter():
+    container = Container()
+
+    container.add_exact_scoped(CatsController)
+
+    with raises(CannotResolveParameterException):
+        container.build_provider()
+
+
+def test_build_provider_raises_for_missing_singleton_parameter():
+    container = Container()
+
+    container.add_exact_singleton(CatsController)
+
+    with raises(CannotResolveParameterException):
+        container.build_provider()

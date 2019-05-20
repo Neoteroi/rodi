@@ -23,3 +23,7 @@ release: clean artifacts
 
 test:
 	pytest
+
+
+testcov:
+	pytest --cov-report html --cov-report annotate --cov=rodi tests/

@@ -78,7 +78,14 @@ class AliasAlreadyDefined(DIException):
 
     def __init__(self, name):
         super().__init__(f"Cannot define alias '{name}'. "
-                         f"Aliases are not used when services use strict mode (strict=True)")
+                         f"An alias with given name is already defined.")
+
+
+class AliasConfigurationError(DIException):
+
+    def __init__(self, name, _type):
+        super().__init__(f"An alias '{name}' for type '{_type.__name__}' was defined, . "
+                         f"but the type was not configured in the Container.")
 
 
 class MissingTypeException(DIException):
@@ -540,7 +547,7 @@ class Container:
         """
         if self.strict:
             raise InvalidOperationInStrictMode()
-        if name in self._aliases:
+        if name in self._aliases or name in self._exact_aliases:
             raise AliasAlreadyDefined(name)
         self._aliases[name].add(desired_type)
         return self
@@ -685,7 +692,8 @@ class Container:
         raise InvalidFactory(handled_type)
 
     def register_factory(self, factory, return_type, life_style):
-        assert callable(factory)
+        if not callable(factory):
+            raise InvalidFactory(return_type)
 
         sign = Signature.from_callable(factory)
         if not return_type:
@@ -727,9 +735,16 @@ class Container:
                         continue
                     for _type in _types:
                         break
-                    _map[name] = _map[_type]
+                    _map[name] = self._get_alias_target_type(name, _map, _type)
 
                 for name, _type in self._exact_aliases.items():
-                    _map[name] = _map[_type]
+                    _map[name] = self._get_alias_target_type(name, _map, _type)
 
         return Services(_map)
+
+    @staticmethod
+    def _get_alias_target_type(name, _map, _type):
+        try:
+            return _map[_type]
+        except KeyError:
+            raise AliasConfigurationError(name, _type)
