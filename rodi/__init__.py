@@ -2,7 +2,7 @@ import re
 from enum import Enum
 from collections import defaultdict
 from typing import Optional, Union, Type, Any, Callable, Dict
-from inspect import Signature, isclass, isabstract, _empty
+from inspect import Signature, isclass, isabstract, _empty, iscoroutinefunction
 
 
 AliasesTypeHint = Dict[str, Union[Type, str]]
@@ -102,9 +102,9 @@ class ServiceLifeStyle(Enum):
 class GetServiceContext:
     __slots__ = ('scoped_services', 'provider', 'types_chain')
 
-    def __init__(self, provider=None):
+    def __init__(self, provider=None, scoped_services=None):
         self.provider = provider
-        self.scoped_services = {}
+        self.scoped_services = scoped_services or {}
 
     def __enter__(self):
         if self.scoped_services is None:
@@ -422,12 +422,13 @@ def to_standard_param_name(name):
 class Services:
     """Provides methods to activate instances of classes, by cached callback functions."""
 
-    __slots__ = ('_map',)
+    __slots__ = ('_map', '_executors')
 
     def __init__(self, services_map=None):
         if services_map is None:
             services_map = {}
         self._map = services_map
+        self._executors = {}
 
     def __contains__(self, item):
         return item in self._map
@@ -472,6 +473,46 @@ class Services:
             return None
 
         return resolver(context, desired_type)
+
+    def _get_getter(self, key, param):
+        if param.annotation is _empty:
+            def getter(context):
+                return self.get(key, context)
+        else:
+            def getter(context):
+                return self.get(param.annotation, context)
+
+        getter.__name__ = f'<getter {key}>'
+        return getter
+
+    def get_executor(self, method: Callable):
+        sig = Signature.from_callable(method)
+        parameters = sig.parameters
+
+        fns = []
+
+        for key, value in parameters.items():
+            fns.append(self._get_getter(key, value))
+
+        if iscoroutinefunction(method):
+            async def executor(scoped: Optional[Dict[Type, Any]] = None):
+                with GetServiceContext(self, scoped) as context:
+                    return await method(*[fn(context) for fn in fns])
+        else:
+            def executor(scoped: Optional[Dict[Type, Any]] = None):
+                with GetServiceContext(self, scoped) as context:
+                    return method(*[fn(context) for fn in fns])
+        return executor
+
+    def exec(self, method: Callable, scoped: Optional[Dict[Type, Any]] = None):
+        # NB: this is an inefficient method
+        #     a better way is to generate an executor for this method and reuse it
+        try:
+            executor = self._executors[method]
+        except KeyError:
+            executor = self.get_executor(method)
+            self._executors[method] = executor
+        return executor(scoped)
 
 
 FactoryCallableNoArguments = Callable[[], Any]
