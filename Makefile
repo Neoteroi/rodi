@@ -22,7 +22,7 @@ release: clean artifacts
 
 
 test:
-	pytest
+	flake8 && pytest
 
 
 testcov:

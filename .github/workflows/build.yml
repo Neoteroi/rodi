@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+      - ci
+  pull_request:
+    branches:
+      - '*'
+
+env:
+  PROJECT_NAME: rodi
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        fetch-depth: 9
+        submodules: false
+
+    - name: Use Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - uses: actions/cache@v1
+      id: depcache
+      with:
+        path: deps
+        key: requirements-pip-${{ matrix.python-version }}-${{ hashFiles('requirements.txt') }}
+
+    - name: Download dependencies
+      if: steps.depcache.outputs.cache-hit != 'true'
+      run: |
+        pip download --dest=deps -r requirements.txt
+
+    - name: Install Python deps
+      run: |
+        pip install -U --no-index --find-links=deps deps/*
+
+    - name: Run tests
+      run: |
+        flake8 && pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml --cov-report=html tests/
+
+    - name: Upload pytest test results
+      uses: actions/upload-artifact@master
+      with:
+        name: pytest-results-${{ matrix.python-version }}
+        path: junit/pytest-results-${{ matrix.python-version }}.xml
+      if: always()
+
+    - name: Create dist package
+      run: python setup.py sdist bdist_wheel
+      if: github.event.pull_request.merged && ${{ matrix.python-version }} == 3.8
+
+    - name: Upload dist package
+      uses: actions/upload-artifact@master
+      with:
+        name: dist-package-${{ matrix.python-version }}
+        path: dist
+      if: github.event.pull_request.merged && ${{ matrix.python-version }} == 3.8

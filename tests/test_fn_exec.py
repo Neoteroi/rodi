@@ -153,4 +153,3 @@ async def test_async_executor():
 
     assert called
     assert result == Context().trace_id
-

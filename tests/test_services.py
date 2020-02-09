@@ -1,67 +1,25 @@
-import pytest
-from pytest import raises
+
 from abc import ABC
 from typing import Type
+
+import pytest
+from pytest import raises
+
 from rodi import (
-    Container,
-    Services,
-    CircularDependencyException,
-    OverridingServiceException,
-    UnsupportedUnionTypeException,
-    MissingTypeException,
-    GetServiceContext,
-    ResolveContext,
-    to_standard_param_name,
-    ClassNotDefiningInitMethod,
-    InvalidFactory,
-    ServiceLifeStyle,
-    InvalidOperationInStrictMode,
-    AliasAlreadyDefined,
-    AliasConfigurationError,
-    CannotResolveParameterException,
-    InstanceResolver
-)
+    AliasAlreadyDefined, AliasConfigurationError,
+    CannotResolveParameterException, CircularDependencyException,
+    ClassNotDefiningInitMethod, Container, GetServiceContext, InstanceResolver,
+    InvalidFactory, InvalidOperationInStrictMode, MissingTypeException,
+    OverridingServiceException, ServiceLifeStyle, Services,
+    UnsupportedUnionTypeException, to_standard_param_name)
 from tests.examples import (
-    ICatsRepository,
-    GetCatRequestHandler,
-    CatsController,
-    IRequestContext,
-    RequestContext,
-    Cat,
-    Foo,
-    ServiceSettings,
-    InMemoryCatsRepository,
-    FooDBContext,
-    FooDBCatsRepository,
-    IdGetter,
-    A,
-    B,
-    C,
-    P,
-    Q,
-    R,
-    W,
-    X,
-    Y,
-    Z,
-    UfoOne,
-    UfoTwo,
-    UfoThree,
-    UfoFour,
-    Ko,
-    Ok,
-    PrecedenceOfTypeHintsOverNames,
-    Jing,
-    Jang,
-    ICircle,
-    Circle,
-    Shape,
-    TrickyCircle,
-    TypeWithOptional,
-    ResolveThisByParameterName,
-    IByParamName,
-    FooByParamName
-)
+    A, B, C, Cat, CatsController, Circle, Foo, FooByParamName,
+    FooDBCatsRepository, FooDBContext, GetCatRequestHandler, IByParamName,
+    ICatsRepository, ICircle, IdGetter, InMemoryCatsRepository,
+    IRequestContext, Jang, Jing, Ko, Ok, P, PrecedenceOfTypeHintsOverNames, Q,
+    R, RequestContext, ResolveThisByParameterName, ServiceSettings, Shape,
+    TrickyCircle, TypeWithOptional, UfoFour, UfoOne, UfoThree, UfoTwo, W, X, Y,
+    Z)
 
 
 def arrange_cats_example():
@@ -799,40 +757,43 @@ def test_proper_handling_of_inheritance():
     assert isinstance(ufo_four, UfoFour)
 
 
-@pytest.mark.parametrize('method_name', [
-    'add_singleton_by_factory',
-    'add_transient_by_factory',
-    'add_scoped_by_factory'
-])
-def test_by_factory_with_different_parameters(method_name):
+def cat_factory_no_args() -> Cat:
+    return Cat('Celine')
 
-    for option in {0, 1, 2}:
-        container = Container()
 
-        if option == 0:
-            def factory() -> Cat:
-                return Cat('Celine')
+def cat_factory_with_context(context) -> Cat:
+    assert isinstance(context, Services)
+    return Cat('Celine')
 
-        if option == 1:
-            def factory(context) -> Cat:
-                assert isinstance(context, Services)
-                return Cat('Celine')
 
-        if option == 2:
-            def factory(context, activating_type) -> Cat:
-                assert isinstance(context, Services)
-                assert activating_type is Cat
-                return Cat('Celine')
+def cat_factory_with_context_and_activating_type(context, activating_type) -> Cat:
+    assert isinstance(context, Services)
+    assert activating_type is Cat
+    return Cat('Celine')
 
-        method = getattr(container, method_name)
-        method(factory)
 
-        provider = container.build_provider()
+@pytest.mark.parametrize(
+    'method_name,factory',
+    [(name, method) for name in
+        ['add_singleton_by_factory',
+         'add_transient_by_factory',
+         'add_scoped_by_factory'] for method in
+        [cat_factory_no_args,
+         cat_factory_with_context,
+         cat_factory_with_context_and_activating_type]])
+def test_by_factory_with_different_parameters(method_name, factory):
+    container = Container()
 
-        cat = provider.get(Cat)
+    method = getattr(container, method_name)
+    method(factory)
 
-        assert cat is not None
-        assert cat.name == 'Celine'
+    provider = container.build_provider()
+
+    # ??? why not?
+    cat = provider.get(Cat)
+
+    assert cat is not None
+    assert cat.name == 'Celine'
 
 
 @pytest.mark.parametrize('method_name', [
@@ -959,7 +920,10 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
             self.child = another_path_2
 
     class HelpController:
-        def __init__(self, handler: HelpHandler, another_path: AnotherPath, logger: Logger):
+        def __init__(self,
+                     handler: HelpHandler,
+                     another_path: AnotherPath,
+                     logger: Logger):
             self.logger = logger
             self.handler = handler
             self.other = another_path
@@ -974,7 +938,13 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
 
     container.add_instance(ServiceSettings('foo:foo'))
 
-    for service_type in {HelpRepo, HelpHandler, HelpController, AnotherPath, AnotherPathTwo, Foo, FooDBContext}:
+    for service_type in {HelpRepo,
+                         HelpHandler,
+                         HelpController,
+                         AnotherPath,
+                         AnotherPathTwo,
+                         Foo,
+                         FooDBContext}:
         container.add_exact_transient(service_type)
 
     provider = container.build_provider()
@@ -985,7 +955,8 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
     assert help_controller.logger is not None
     assert help_controller.logger.name == 'tests.test_services.HelpController'
     assert help_controller.handler.repo.logger.name == 'tests.test_services.HelpRepo'
-    assert help_controller.other.child.logger.name == 'tests.test_services.AnotherPathTwo'
+    assert help_controller.other.child.logger.name == 'tests.test_services.' \
+                                                      'AnotherPathTwo'
 
 
 def test_service_provider_supports_set_by_class():

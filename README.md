@@ -55,13 +55,5 @@ For documentation and examples, please refer to the [wiki in GitHub, https://git
 
 ---
 
-# Develop and run tests locally
-```bash
-pip install -r dev_requirements.txt
-
-# run tests using automatic discovery:
-pytest
-```
-
 ## Public project in Azure DevOps
 [https://dev.azure.com/robertoprevato/rodi](https://dev.azure.com/robertoprevato/rodi) - see here the project in Azure DevOps, with [builds](https://dev.azure.com/robertoprevato/rodi/_build?definitionId=8) and other goodness.
