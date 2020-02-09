@@ -56,11 +56,16 @@ jobs:
         path: junit/pytest-results-${{ matrix.python-version }}.xml
       if: always()
 
+    - name: Cat coverage.xml
+      run: |
+        cat coverage.xml
+
     - name: Upload coverage to codecov,io
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: coverage.xml
+      if: matrix.python-version == 3.8
 
     - name: Install distribution dependencies
       run: pip install --upgrade twine setuptools wheel
