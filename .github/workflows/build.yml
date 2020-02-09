@@ -47,7 +47,7 @@ jobs:
 
     - name: Run tests
       run: |
-        flake8 && pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml --cov-report=html tests/
+        flake8 && pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
 
     - name: Upload pytest test results
       uses: actions/upload-artifact@master
@@ -56,17 +56,23 @@ jobs:
         path: junit/pytest-results-${{ matrix.python-version }}.xml
       if: always()
 
+    - name: Upload coverage to codecov,io
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: junit/pytest-results-${{ matrix.python-version }}.xml
+
     - name: Install distribution dependencies
       run: pip install --upgrade twine setuptools wheel
-      if: github.event.pull_request.merged && ${{ matrix.python-version }} == 3.8
+      if: github.event.pull_request.merged && matrix.python-version == 3.8
 
     - name: Create distribution package
       run: python setup.py sdist bdist_wheel
-      if: github.event.pull_request.merged && ${{ matrix.python-version }} == 3.8
+      if: github.event.pull_request.merged && matrix.python-version == 3.8
 
     - name: Upload distribution package
       uses: actions/upload-artifact@master
       with:
         name: dist-package-${{ matrix.python-version }}
         path: dist
-      if: github.event.pull_request.merged && ${{ matrix.python-version }} == 3.8
+      if: github.event.pull_request.merged && matrix.python-version == 3.8
