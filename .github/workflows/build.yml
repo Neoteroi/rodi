@@ -60,7 +60,7 @@ jobs:
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: junit/pytest-results-${{ matrix.python-version }}.xml
+        file: coverage.xml
 
     - name: Install distribution dependencies
       run: pip install --upgrade twine setuptools wheel
