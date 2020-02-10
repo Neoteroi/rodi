@@ -6,6 +6,8 @@ __pycache__/
 # C extensions
 *.so
 
+.vscode
+
 # Distribution / packaging
 .Python
 build/
@@ -107,3 +109,4 @@ test-cov.xml
 test-output.xml
 
 */*.py,cover
+junit
