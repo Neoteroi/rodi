@@ -16,8 +16,10 @@ class ClassNotDefiningInitMethod(DIException):
     not implement a specific __init__ method"""
 
     def __init__(self, desired_type):
-        super().__init__(f"Cannot activate an instance of '{desired_type.__name__}' "
-                         f"because it does not implement a specific __init__ method.")
+        super().__init__(
+            f"Cannot activate an instance of '{desired_type.__name__}' "
+            f"because it does not implement a specific __init__ method."
+        )
 
 
 class CannotResolveParameterException(DIException):
@@ -25,8 +27,10 @@ class CannotResolveParameterException(DIException):
     necessary to instantiate a type."""
 
     def __init__(self, param_name, desired_type):
-        super().__init__(f"Unable to resolve parameter '{param_name}' "
-                         f"when resolving '{desired_type.__name__}'")
+        super().__init__(
+            f"Unable to resolve parameter '{param_name}' "
+            f"when resolving '{desired_type.__name__}'"
+        )
 
 
 class UnsupportedUnionTypeException(DIException):
@@ -34,9 +38,11 @@ class UnsupportedUnionTypeException(DIException):
     as Optional or Union of several types."""
 
     def __init__(self, param_name, desired_type):
-        super().__init__(f"Union or Optional type declaration is not supported. "
-                         f"Cannot resolve parameter '{param_name}' "
-                         f"when resolving '{desired_type.__name__}'")
+        super().__init__(
+            f"Union or Optional type declaration is not supported. "
+            f"Cannot resolve parameter '{param_name}' "
+            f"when resolving '{desired_type.__name__}'"
+        )
 
 
 class OverridingServiceException(DIException):
@@ -45,8 +51,10 @@ class OverridingServiceException(DIException):
 
     def __init__(self, key, value):
         key_name = key if isinstance(key, str) else key.__name__
-        super().__init__(f"A service with key '{key_name}' is already "
-                         f"registered and would be overridden by value {value}.")
+        super().__init__(
+            f"A service with key '{key_name}' is already "
+            f"registered and would be overridden by value {value}."
+        )
 
 
 class CircularDependencyException(DIException):
@@ -54,52 +62,61 @@ class CircularDependencyException(DIException):
     one of its parameters is detected."""
 
     def __init__(self, expected_type, desired_type):
-        super().__init__(f"A circular dependency was detected for the service "
-                         f"of type '{expected_type.__name__}' "
-                         f"for '{desired_type.__name__}'")
+        super().__init__(
+            "A circular dependency was detected for the service "
+            f"of type '{expected_type.__name__}' "
+            f"for '{desired_type.__name__}'"
+        )
 
 
 class InvalidOperationInStrictMode(DIException):
-
     def __init__(self):
-        super().__init__(f"The services are configured in strict mode, "
-                         f"the operation is invalid.")
+        super().__init__(
+            "The services are configured in strict mode, the operation is invalid."
+        )
 
 
 class AliasAlreadyDefined(DIException):
     """Exception risen when trying to add an alias that already exists."""
 
     def __init__(self, name):
-        super().__init__(f"Cannot define alias '{name}'. "
-                         f"An alias with given name is already defined.")
+        super().__init__(
+            f"Cannot define alias '{name}'. "
+            f"An alias with given name is already defined."
+        )
 
 
 class AliasConfigurationError(DIException):
-
     def __init__(self, name, _type):
-        super().__init__(f"An alias '{name}' for type '{_type.__name__}' was defined, "
-                         f"but the type was not configured in the Container.")
+        super().__init__(
+            f"An alias '{name}' for type '{_type.__name__}' was defined, "
+            f"but the type was not configured in the Container."
+        )
 
 
 class MissingTypeException(DIException):
     """Exception risen when a type must be specified to use a factory"""
 
     def __init__(self):
-        super().__init__('Please specify the factory return type or '
-                         'annotate its return type; func() -> Foo:')
+        super().__init__(
+            "Please specify the factory return type or "
+            "annotate its return type; func() -> Foo:"
+        )
 
 
 class InvalidFactory(DIException):
     """Exception risen when a factory is not valid"""
 
     def __init__(self, _type):
-        super().__init__(f'The factory specified for type {_type.__name__} is not '
-                         f'valid, it must be a function with either these signatures: '
-                         f'def example_factory(context, type): '
-                         f'or,'
-                         f'def example_factory(context): '
-                         f'or,'
-                         f'def example_factory(): ')
+        super().__init__(
+            f"The factory specified for type {_type.__name__} is not "
+            f"valid, it must be a function with either these signatures: "
+            f"def example_factory(context, type): "
+            f"or,"
+            f"def example_factory(context): "
+            f"or,"
+            f"def example_factory(): "
+        )
 
 
 class ServiceLifeStyle(Enum):
@@ -109,7 +126,7 @@ class ServiceLifeStyle(Enum):
 
 
 class GetServiceContext:
-    __slots__ = ('scoped_services', 'provider', 'types_chain')
+    __slots__ = ("scoped_services", "provider", "types_chain")
 
     def __init__(self, provider=None, scoped_services=None):
         self.provider = provider
@@ -133,7 +150,7 @@ class GetServiceContext:
 
 
 class ResolveContext:
-    __slots__ = ('resolved', 'dynamic_chain')
+    __slots__ = ("resolved", "dynamic_chain")
 
     def __init__(self):
         self.resolved = {}
@@ -151,7 +168,7 @@ class ResolveContext:
 
 
 class InstanceProvider:
-    __slots__ = ('instance',)
+    __slots__ = ("instance",)
 
     def __init__(self, instance):
         self.instance = instance
@@ -161,7 +178,7 @@ class InstanceProvider:
 
 
 class TypeProvider:
-    __slots__ = ('_type',)
+    __slots__ = ("_type",)
 
     def __init__(self, _type):
         self._type = _type
@@ -171,7 +188,7 @@ class TypeProvider:
 
 
 class ScopedTypeProvider:
-    __slots__ = ('_type',)
+    __slots__ = ("_type",)
 
     def __init__(self, _type):
         self._type = _type
@@ -186,7 +203,7 @@ class ScopedTypeProvider:
 
 
 class ArgsTypeProvider:
-    __slots__ = ('_type', '_args_callbacks')
+    __slots__ = ("_type", "_args_callbacks")
 
     def __init__(self, _type, args_callbacks):
         self._type = _type
@@ -197,11 +214,9 @@ class ArgsTypeProvider:
 
 
 class FactoryTypeProvider:
-    __slots__ = ('_type', 'factory')
+    __slots__ = ("_type", "factory")
 
-    def __init__(self,
-                 _type,
-                 factory):
+    def __init__(self, _type, factory):
         self._type = _type
         self.factory = factory
 
@@ -210,11 +225,9 @@ class FactoryTypeProvider:
 
 
 class SingletonFactoryTypeProvider:
-    __slots__ = ('_type', 'factory', 'instance')
+    __slots__ = ("_type", "factory", "instance")
 
-    def __init__(self,
-                 _type,
-                 factory):
+    def __init__(self, _type, factory):
         self._type = _type
         self.factory = factory
         self.instance = None
@@ -226,11 +239,9 @@ class SingletonFactoryTypeProvider:
 
 
 class ScopedFactoryTypeProvider:
-    __slots__ = ('_type', 'factory')
+    __slots__ = ("_type", "factory")
 
-    def __init__(self,
-                 _type,
-                 factory):
+    def __init__(self, _type, factory):
         self._type = _type
         self.factory = factory
 
@@ -244,7 +255,7 @@ class ScopedFactoryTypeProvider:
 
 
 class ScopedArgsTypeProvider:
-    __slots__ = ('_type', '_args_callbacks')
+    __slots__ = ("_type", "_args_callbacks")
 
     def __init__(self, _type, args_callbacks):
         self._type = _type
@@ -260,7 +271,7 @@ class ScopedArgsTypeProvider:
 
 
 class SingletonTypeProvider:
-    __slots__ = ('_type', '_instance', '_args_callbacks')
+    __slots__ = ("_type", "_instance", "_args_callbacks")
 
     def __init__(self, _type, _args_callbacks):
         self._type = _type
@@ -269,36 +280,32 @@ class SingletonTypeProvider:
 
     def __call__(self, context, parent_type):
         if not self._instance:
-            self._instance = self._type(*[fn(context, self._type)
-                                          for fn in self._args_callbacks]) \
-                if self._args_callbacks else self._type()
+            self._instance = (
+                self._type(*[fn(context, self._type) for fn in self._args_callbacks])
+                if self._args_callbacks
+                else self._type()
+            )
 
         return self._instance
 
 
 class InstanceResolver:
-    __slots__ = ('instance',)
+    __slots__ = ("instance",)
 
     def __init__(self, instance):
         self.instance = instance
 
     def __repr__(self):
-        return f'<Singleton {self.instance.__class__.__name__}>'
+        return f"<Singleton {self.instance.__class__.__name__}>"
 
     def __call__(self, context: ResolveContext):
         return InstanceProvider(self.instance)
 
 
 class DynamicResolver:
-    __slots__ = ('concrete_type',
-                 'params',
-                 'services',
-                 'lifestyle')
+    __slots__ = ("concrete_type", "params", "services", "lifestyle")
 
-    def __init__(self,
-                 concrete_type,
-                 services,
-                 lifestyle):
+    def __init__(self, concrete_type, services, lifestyle):
         assert isclass(concrete_type)
         assert not isabstract(concrete_type)
 
@@ -316,8 +323,9 @@ class DynamicResolver:
             return context.resolved[desired_type]
 
         reg = self.services._map.get(desired_type)
-        assert reg is not None, f'A resolver for type {desired_type.__name__} ' \
-                                f'is not configured'
+        assert reg is not None, (
+            f"A resolver for type {desired_type.__name__} " f"is not configured"
+        )
         return reg(context)
 
     def __call__(self, context: ResolveContext):
@@ -329,7 +337,7 @@ class DynamicResolver:
 
         chain.append(concrete_type)
 
-        if getattr(concrete_type, '__init__') is object.__init__:
+        if getattr(concrete_type, "__init__") is object.__init__:
             raise ClassNotDefiningInitMethod(concrete_type)
 
         params = self.params
@@ -347,12 +355,12 @@ class DynamicResolver:
         services = self.services
 
         for param_name, param in params.items():
-            if param_name == 'self':
+            if param_name == "self":
                 continue
 
             param_type = param.annotation
 
-            if hasattr(param_type, '__origin__') and param_type.__origin__ is Union:
+            if hasattr(param_type, "__origin__") and param_type.__origin__ is Union:
                 # NB: we could cycle through possible types using: param_type.__args__
                 # Right now Union and Optional types resolution is not implemented,
                 # but at least Optional could be supported in the future
@@ -371,8 +379,9 @@ class DynamicResolver:
                     aliases = services._aliases[param_name]
 
                     if aliases:
-                        assert len(aliases) == 1, 'Configured aliases must ' \
-                                                  'not be ambiguous'
+                        assert len(aliases) == 1, (
+                            "Configured aliases must " "not be ambiguous"
+                        )
                         for param_type in aliases:
                             break
 
@@ -395,15 +404,9 @@ class DynamicResolver:
 
 
 class FactoryResolver:
-    __slots__ = ('concrete_type',
-                 'factory',
-                 'params',
-                 'lifestyle')
+    __slots__ = ("concrete_type", "factory", "params", "lifestyle")
 
-    def __init__(self,
-                 concrete_type,
-                 factory,
-                 lifestyle):
+    def __init__(self, concrete_type, factory, lifestyle):
         assert isclass(concrete_type)
         assert not isabstract(concrete_type)
 
@@ -421,14 +424,14 @@ class FactoryResolver:
         return FactoryTypeProvider(self.concrete_type, self.factory)
 
 
-first_cap_re = re.compile('(.)([A-Z][a-z]+)')
-all_cap_re = re.compile('([a-z0-9])([A-Z])')
+first_cap_re = re.compile("(.)([A-Z][a-z]+)")
+all_cap_re = re.compile("([a-z0-9])([A-Z])")
 
 
 def to_standard_param_name(name):
-    value = all_cap_re.sub(r'\1_\2', first_cap_re.sub(r'\1_\2', name)).lower()
-    if value.startswith('i_'):
-        return 'i' + value[2:]
+    value = all_cap_re.sub(r"\1_\2", first_cap_re.sub(r"\1_\2", name)).lower()
+    if value.startswith("i_"):
+        return "i" + value[2:]
     return value
 
 
@@ -438,7 +441,7 @@ class Services:
     by cached callback functions.
     """
 
-    __slots__ = ('_map', '_executors')
+    __slots__ = ("_map", "_executors")
 
     def __init__(self, services_map=None):
         if services_map is None:
@@ -464,19 +467,23 @@ class Services:
         :param value:
         :return:
         """
-        if new_type in self._map or (not isinstance(new_type, str)
-                                     and new_type.__name__ in self._map):
+        if new_type in self._map or (
+            not isinstance(new_type, str) and new_type.__name__ in self._map
+        ):
             raise OverridingServiceException(self._map[new_type], new_type)
 
         def resolver(context, desired_type):
             return value
+
         self._map[new_type] = resolver
         if not isinstance(new_type, str):
             self._map[new_type.__name__] = resolver
 
-    def get(self,
-            desired_type: Union[Type, str],
-            context: Optional[GetServiceContext] = None) -> Any:
+    def get(
+        self,
+        desired_type: Union[Type, str],
+        context: Optional[GetServiceContext] = None,
+    ) -> Any:
         """Gets a service of desired type, returning an activated instance.
 
         :param desired_type: desired service type.
@@ -495,13 +502,16 @@ class Services:
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
+
             def getter(context):
                 return self.get(key, context)
+
         else:
+
             def getter(context):
                 return self.get(param.annotation, context)
 
-        getter.__name__ = f'<getter {key}>'
+        getter.__name__ = f"<getter {key}>"
         return getter
 
     def get_executor(self, method: Callable) -> Callable:
@@ -514,20 +524,20 @@ class Services:
             fns.append(self._get_getter(key, value))
 
         if iscoroutinefunction(method):
+
             async def async_executor(scoped: Optional[Dict[Type, Any]] = None):
                 with GetServiceContext(self, scoped) as context:
                     return await method(*[fn(context) for fn in fns])
+
             return async_executor
 
         def executor(scoped: Optional[Dict[Type, Any]] = None):
             with GetServiceContext(self, scoped) as context:
                 return method(*[fn(context) for fn in fns])
+
         return executor
 
-    def exec(self,
-             method: Callable,
-             scoped: Optional[Dict[Type, Any]] = None,
-             ) -> Any:
+    def exec(self, method: Callable, scoped: Optional[Dict[Type, Any]] = None,) -> Any:
         try:
             executor = self._executors[method]
         except KeyError:
@@ -539,14 +549,16 @@ class Services:
 FactoryCallableNoArguments = Callable[[], Any]
 FactoryCallableSingleArgument = Callable[[Services], Any]
 FactoryCallableTwoArguments = Callable[[Services, Type], Any]
-FactoryCallableType = Union[FactoryCallableNoArguments,
-                            FactoryCallableSingleArgument,
-                            FactoryCallableTwoArguments]
+FactoryCallableType = Union[
+    FactoryCallableNoArguments,
+    FactoryCallableSingleArgument,
+    FactoryCallableTwoArguments,
+]
 
 
 class FactoryWrapperNoArgs:
 
-    __slots__ = ('factory',)
+    __slots__ = ("factory",)
 
     def __init__(self, factory):
         self.factory = factory
@@ -556,7 +568,7 @@ class FactoryWrapperNoArgs:
 
 
 class FactoryWrapperContextArg:
-    __slots__ = ('factory',)
+    __slots__ = ("factory",)
 
     def __init__(self, factory):
         self.factory = factory
@@ -568,7 +580,7 @@ class FactoryWrapperContextArg:
 class Container:
     """Configuration class for a collection of services."""
 
-    __slots__ = ('_map', '_aliases', '_exact_aliases', 'strict')
+    __slots__ = ("_map", "_aliases", "_exact_aliases", "strict")
 
     def __init__(self, strict: bool = False):
         self._map = {}
@@ -579,13 +591,13 @@ class Container:
     def __contains__(self, key):
         return key in self._map
 
-    def register(self,
-                 base_type: Type,
-                 concrete_type: Type,
-                 lifestyle: ServiceLifeStyle):
-        assert issubclass(concrete_type, base_type), \
-            f'Cannot register {base_type.__name__} for abstract class ' \
-            f'{concrete_type.__name__}'
+    def register(
+        self, base_type: Type, concrete_type: Type, lifestyle: ServiceLifeStyle
+    ):
+        assert issubclass(concrete_type, base_type), (
+            f"Cannot register {base_type.__name__} for abstract class "
+            f"{concrete_type.__name__}"
+        )
 
         self._bind(base_type, DynamicResolver(concrete_type, self, lifestyle))
         return self
@@ -662,8 +674,10 @@ class Container:
         the singleton
         :return: the service collection itself
         """
-        self._bind(instance.__class__ if not declared_class else declared_class,
-                   InstanceResolver(instance))
+        self._bind(
+            instance.__class__ if not declared_class else declared_class,
+            InstanceResolver(instance),
+        )
         return self
 
     def add_singleton(self, base_type: Type, concrete_type: Optional[Type] = None):
@@ -715,9 +729,10 @@ class Container:
         :return: the service collection itself
         """
         assert not isabstract(concrete_type)
-        self._bind(concrete_type, DynamicResolver(concrete_type,
-                                                  self,
-                                                  ServiceLifeStyle.SINGLETON))
+        self._bind(
+            concrete_type,
+            DynamicResolver(concrete_type, self, ServiceLifeStyle.SINGLETON),
+        )
         return self
 
     def add_exact_scoped(self, concrete_type: Type):
@@ -727,9 +742,9 @@ class Container:
         :return: the service collection itself
         """
         assert not isabstract(concrete_type)
-        self._bind(concrete_type, DynamicResolver(concrete_type,
-                                                  self,
-                                                  ServiceLifeStyle.SCOPED))
+        self._bind(
+            concrete_type, DynamicResolver(concrete_type, self, ServiceLifeStyle.SCOPED)
+        )
         return self
 
     def add_exact_transient(self, concrete_type: Type):
@@ -739,31 +754,32 @@ class Container:
         :return: the service collection itself
         """
         assert not isabstract(concrete_type)
-        self._bind(concrete_type, DynamicResolver(concrete_type,
-                                                  self,
-                                                  ServiceLifeStyle.TRANSIENT))
+        self._bind(
+            concrete_type,
+            DynamicResolver(concrete_type, self, ServiceLifeStyle.TRANSIENT),
+        )
         return self
 
-    def add_singleton_by_factory(self,
-                                 factory: FactoryCallableType,
-                                 return_type: Optional[Type] = None):
+    def add_singleton_by_factory(
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
+    ):
         self.register_factory(factory, return_type, ServiceLifeStyle.SINGLETON)
         return self
 
-    def add_transient_by_factory(self,
-                                 factory: FactoryCallableType,
-                                 return_type: Optional[Type] = None):
+    def add_transient_by_factory(
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
+    ):
         self.register_factory(factory, return_type, ServiceLifeStyle.TRANSIENT)
         return self
 
-    def add_scoped_by_factory(self,
-                              factory: FactoryCallableType,
-                              return_type: Optional[Type] = None):
+    def add_scoped_by_factory(
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
+    ):
         self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
         return self
 
     def _check_factory(self, factory, signature, handled_type):
-        assert callable(factory), 'The factory must be callable'
+        assert callable(factory), "The factory must be callable"
 
         params_len = len(signature.parameters)
 
@@ -778,10 +794,12 @@ class Container:
 
         raise InvalidFactory(handled_type)
 
-    def register_factory(self,
-                         factory: Callable,
-                         return_type: Optional[Type],
-                         life_style: ServiceLifeStyle):
+    def register_factory(
+        self,
+        factory: Callable,
+        return_type: Optional[Type],
+        life_style: ServiceLifeStyle,
+    ):
         if not callable(factory):
             raise InvalidFactory(return_type)
 
@@ -790,11 +808,12 @@ class Container:
             if sign.return_annotation is _empty:
                 raise MissingTypeException()
             return_type = sign.return_annotation
-        self._bind(return_type, FactoryResolver(return_type,
-                                                self._check_factory(factory,
-                                                                    sign,
-                                                                    return_type),
-                                                life_style))
+        self._bind(
+            return_type,
+            FactoryResolver(
+                return_type, self._check_factory(factory, sign, return_type), life_style
+            ),
+        )
 
     def build_provider(self) -> Services:
         """Builds and returns a service provider that can be used to activate and
@@ -811,7 +830,7 @@ class Container:
 
             for _type, resolver in self._map.items():
                 # NB: do not call resolver if one was already prepared for the type
-                assert _type not in context.resolved, '_map keys must be unique'
+                assert _type not in context.resolved, "_map keys must be unique"
 
                 if isinstance(resolver, DynamicResolver):
                     context.dynamic_chain.clear()
