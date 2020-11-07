@@ -12,8 +12,6 @@
 
 This library is freely inspired by .NET Standard `Microsoft.Extensions.DependencyInjection` implementation (_ref. [MSDN, Dependency injection in ASP.NET Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.1), [Using dependency injection in a .Net Core console application](https://andrewlock.net/using-dependency-injection-in-a-net-core-console-application/)_).
 
-The idea of writing this library was strengthened by this article by [Bob Gregory](https://twitter.com/bob_the_mighty): _[Dependency Injection with Type Signatures in Python](https://io.made.com/dependency-injection-with-type-signatures-in-python/)_. Even before reading Gregory's article, I shared many of the ideas he described in his blog.
-
 ## Installation
 
 ```bash
