@@ -58,6 +58,10 @@ jobs:
           path: junit/pytest-results-${{ matrix.python-version }}.xml
         if: always()
 
+      - name: Codecov
+        run: |
+          bash <(curl -s https://codecov.io/bash)
+
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
         if: github.event.pull_request.merged && matrix.python-version == 3.9
