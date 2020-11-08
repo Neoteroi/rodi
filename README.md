@@ -1,5 +1,7 @@
-[![Build](https://github.com/RobertoPrevato/rodi/workflows/Build/badge.svg)](https://github.com/RobertoPrevato/rodi/actions?query=workflow%3ABuild)
-[![Build status](https://dev.azure.com/robertoprevato/rodi/_apis/build/status/rodi-CI)](https://dev.azure.com/robertoprevato/rodi/_build/latest?definitionId=8) [![pypi](https://robertoprevato.vsrm.visualstudio.com/_apis/public/Release/badge/06ceb1f2-6ca8-4981-97ca-14cc8b599bc7/1/2)](https://pypi.org/project/rodi/) [![Test coverage](https://img.shields.io/azure-devops/coverage/robertoprevato/rodi/8/master.svg)](https://robertoprevato.visualstudio.com/rodi/_build?definitionId=8)
+![Build](https://github.com/RobertoPrevato/rodi/workflows/Build/badge.svg)
+[![pypi](https://img.shields.io/pypi/v/rodi.svg)](https://pypi.python.org/pypi/rodi)
+[![versions](https://img.shields.io/pypi/pyversions/rodi.svg)](https://github.com/RobertoPrevato/rodi)
+[![license](https://img.shields.io/github/license/RobertoPrevato/rodi.svg)](https://github.com/RobertoPrevato/rodi/blob/master/LICENSE)
 
 # Implementation of dependency injection for Python 3
 
@@ -51,8 +53,3 @@ assert cat.name == "Celine"
 
 # Documentation
 For documentation and examples, please refer to the [wiki in GitHub, https://github.com/RobertoPrevato/rodi/wiki](https://github.com/RobertoPrevato/rodi/wiki).
-
----
-
-## Public project in Azure DevOps
-[https://dev.azure.com/robertoprevato/rodi](https://dev.azure.com/robertoprevato/rodi) - see here the project in Azure DevOps, with [builds](https://dev.azure.com/robertoprevato/rodi/_build?definitionId=8).
