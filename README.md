@@ -2,6 +2,7 @@
 [![pypi](https://img.shields.io/pypi/v/rodi.svg)](https://pypi.python.org/pypi/rodi)
 [![versions](https://img.shields.io/pypi/pyversions/rodi.svg)](https://github.com/RobertoPrevato/rodi)
 [![license](https://img.shields.io/github/license/RobertoPrevato/rodi.svg)](https://github.com/RobertoPrevato/rodi/blob/master/LICENSE)
+[![codecov](https://codecov.io/gh/RobertoPrevato/rodi/branch/master/graph/badge.svg?token=VzAnusWIZt)](https://codecov.io/gh/RobertoPrevato/rodi)
 
 # Implementation of dependency injection for Python 3
 
