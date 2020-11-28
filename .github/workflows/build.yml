@@ -60,6 +60,7 @@ jobs:
 
       - name: Codecov
         run: |
+          bash <(sed -i 's/filename=\"/filename=\"rodi\//g' coverage.xml)
           bash <(curl -s https://codecov.io/bash)
 
       - name: Install distribution dependencies
