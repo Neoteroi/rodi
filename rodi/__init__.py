@@ -2,7 +2,17 @@ import re
 from collections import defaultdict
 from enum import Enum
 from inspect import Signature, _empty, isabstract, isclass, iscoroutinefunction
-from typing import Any, Callable, Dict, Optional, Type, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Type,
+    Union,
+    get_type_hints,
+)
 
 AliasesTypeHint = Dict[str, Union[Type, str]]
 
@@ -221,7 +231,8 @@ class FactoryTypeProvider:
         self.factory = factory
 
     def __call__(self, context: GetServiceContext, parent_type):
-        return self.factory(context.provider, parent_type)
+        assert isinstance(context, GetServiceContext)
+        return self.factory(context, parent_type)
 
 
 class SingletonFactoryTypeProvider:
@@ -234,7 +245,7 @@ class SingletonFactoryTypeProvider:
 
     def __call__(self, context: GetServiceContext, parent_type):
         if self.instance is None:
-            self.instance = self.factory(context.provider, parent_type)
+            self.instance = self.factory(context, parent_type)
         return self.instance
 
 
@@ -249,7 +260,7 @@ class ScopedFactoryTypeProvider:
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        instance = self.factory(context.provider, parent_type)
+        instance = self.factory(context, parent_type)
         context.scoped_services[self._type] = instance
         return instance
 
@@ -302,18 +313,28 @@ class InstanceResolver:
         return InstanceProvider(self.instance)
 
 
+class Dependency:
+    __slots__ = ("name", "annotation")
+
+    def __init__(self, name, annotation):
+        self.name = name
+        self.annotation = annotation
+
+
 class DynamicResolver:
-    __slots__ = ("concrete_type", "params", "services", "lifestyle")
+    __slots__ = ("_concrete_type", "services", "lifestyle")
 
     def __init__(self, concrete_type, services, lifestyle):
         assert isclass(concrete_type)
         assert not isabstract(concrete_type)
 
-        self.concrete_type = concrete_type
+        self._concrete_type = concrete_type
         self.services = services
-        sig = Signature.from_callable(concrete_type.__init__)
-        self.params = sig.parameters
         self.lifestyle = lifestyle
+
+    @property
+    def concrete_type(self):
+        return self._concrete_type
 
     def _get_resolver(self, desired_type, context: ResolveContext):
         # NB: the following two lines are important to ensure that singletons
@@ -328,29 +349,13 @@ class DynamicResolver:
         )
         return reg(context)
 
-    def __call__(self, context: ResolveContext):
-        concrete_type = self.concrete_type
-
+    def _get_resolvers_for_parameters(
+        self,
+        concrete_type,
+        context: ResolveContext,
+        params: Mapping[str, Dependency],
+    ):
         chain = context.dynamic_chain
-        if concrete_type in chain:
-            raise CircularDependencyException(chain[0], concrete_type)
-
-        chain.append(concrete_type)
-
-        if getattr(concrete_type, "__init__") is object.__init__:
-            raise ClassNotDefiningInitMethod(concrete_type)
-
-        params = self.params
-
-        if len(params) == 1:
-            if self.lifestyle == ServiceLifeStyle.SINGLETON:
-                return SingletonTypeProvider(concrete_type, None)
-
-            if self.lifestyle == ServiceLifeStyle.SCOPED:
-                return ScopedTypeProvider(concrete_type)
-
-            return TypeProvider(concrete_type)
-
         fns = []
         services = self.services
 
@@ -379,9 +384,9 @@ class DynamicResolver:
                     aliases = services._aliases[param_name]
 
                     if aliases:
-                        assert len(aliases) == 1, (
-                            "Configured aliases must " "not be ambiguous"
-                        )
+                        assert (
+                            len(aliases) == 1
+                        ), "Configured aliases cannot be ambiguous"
                         for param_type in aliases:
                             break
 
@@ -393,6 +398,26 @@ class DynamicResolver:
 
             param_resolver = self._get_resolver(param_type, context)
             fns.append(param_resolver)
+        return fns
+
+    def _resolve_by_init_method(self, context: ResolveContext):
+        sig = Signature.from_callable(self.concrete_type.__init__)
+        params = {
+            key: Dependency(key, value.annotation)
+            for key, value in sig.parameters.items()
+        }
+        concrete_type = self.concrete_type
+
+        if len(params) == 1 and next(iter(params.keys())) == "self":
+            if self.lifestyle == ServiceLifeStyle.SINGLETON:
+                return SingletonTypeProvider(concrete_type, None)
+
+            if self.lifestyle == ServiceLifeStyle.SCOPED:
+                return ScopedTypeProvider(concrete_type)
+
+            return TypeProvider(concrete_type)
+
+        fns = self._get_resolvers_for_parameters(concrete_type, context, params)
 
         if self.lifestyle == ServiceLifeStyle.SINGLETON:
             return SingletonTypeProvider(concrete_type, fns)
@@ -401,6 +426,49 @@ class DynamicResolver:
             return ScopedArgsTypeProvider(concrete_type, fns)
 
         return ArgsTypeProvider(concrete_type, fns)
+
+    def _resolve_by_annotations(
+        self, context: ResolveContext, annotations: Dict[str, Type]
+    ):
+        params = {key: Dependency(key, value) for key, value in annotations.items()}
+        concrete_type = self.concrete_type
+
+        fns = self._get_resolvers_for_parameters(concrete_type, context, params)
+
+        def factory(context, parent_type):
+            instance = concrete_type()
+
+            i = 0
+            for name in annotations.keys():
+                value = fns[i](context, parent_type)
+                setattr(instance, name, value)
+                i += 1
+
+            return instance
+
+        return FactoryResolver(concrete_type, factory, self.lifestyle)(context)
+
+    def __call__(self, context: ResolveContext):
+        concrete_type = self.concrete_type
+
+        chain = context.dynamic_chain
+        if concrete_type in chain:
+            raise CircularDependencyException(chain[0], concrete_type)
+
+        chain.append(concrete_type)
+
+        if getattr(concrete_type, "__init__") is object.__init__:
+            annotations = get_type_hints(concrete_type)
+
+            if annotations:
+                return self._resolve_by_annotations(context, annotations)
+
+            raise ClassNotDefiningInitMethod(concrete_type)
+            # return FactoryResolver(concrete_type, concrete_type, self.lifestyle)(
+            #     context
+            # )
+
+        return self._resolve_by_init_method(context)
 
 
 class FactoryResolver:
@@ -484,13 +552,16 @@ class Services:
         desired_type: Union[Type, str],
         context: Optional[GetServiceContext] = None,
     ) -> Any:
-        """Gets a service of desired type, returning an activated instance.
+        """
+        Gets a service of the desired type, returning an activated instance.
 
         :param desired_type: desired service type.
         :param context: optional context, used to handle scoped services.
         :return: an instance of the desired type
         """
+        dispose_context = False
         if context is None:
+            dispose_context = True
             context = GetServiceContext(self)
 
         resolver = self._map.get(desired_type)
@@ -498,7 +569,11 @@ class Services:
         if not resolver:
             return None
 
-        return resolver(context, desired_type)
+        result = resolver(context, desired_type)
+
+        if dispose_context:
+            context.dispose()
+        return result
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
@@ -537,7 +612,11 @@ class Services:
 
         return executor
 
-    def exec(self, method: Callable, scoped: Optional[Dict[Type, Any]] = None,) -> Any:
+    def exec(
+        self,
+        method: Callable,
+        scoped: Optional[Dict[Type, Any]] = None,
+    ) -> Any:
         try:
             executor = self._executors[method]
         except KeyError:

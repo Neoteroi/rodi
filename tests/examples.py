@@ -5,14 +5,12 @@ from abc import ABC, abstractmethod
 
 # domain object:
 class Cat:
-
     def __init__(self, name):
         self.name = name
 
 
 # abstract interface
 class ICatsRepository(ABC):
-
     @abstractmethod
     def get_by_id(self, _id) -> Cat:
         pass
@@ -20,7 +18,6 @@ class ICatsRepository(ABC):
 
 # one of the possible implementations of ICatsRepository
 class InMemoryCatsRepository(ICatsRepository):
-
     def __init__(self):
         self._cats = {}
 
@@ -30,7 +27,6 @@ class InMemoryCatsRepository(ICatsRepository):
 
 # NB: example of business layer class, using interface of repository
 class GetCatRequestHandler:
-
     def __init__(self, cats_repository: ICatsRepository):
         self.repo = cats_repository
 
@@ -41,13 +37,11 @@ class GetCatRequestHandler:
 
 # NB: example of controller class;
 class CatsController:
-
     def __init__(self, get_cat_request_handler: GetCatRequestHandler):
         self.cat_request_handler = get_cat_request_handler
 
 
 class IRequestContext(ABC):
-
     @property
     @abstractmethod
     def id(self):
@@ -60,7 +54,6 @@ class IRequestContext(ABC):
 
 
 class RequestContext(IRequestContext):
-
     def __init__(self):
         pass
 
@@ -74,20 +67,17 @@ class RequestContext(IRequestContext):
 
 
 class ServiceSettings:
-
     def __init__(self, foo_db_connection_string):
         self.foo_db_connection_string = foo_db_connection_string
 
 
 class FooDBContext:
-
     def __init__(self, service_settings: ServiceSettings):
         self.settings = service_settings
         self.connection_string = service_settings.foo_db_connection_string
 
 
 class FooDBCatsRepository(ICatsRepository):
-
     def __init__(self, context: FooDBContext):
         self.context = context
 
@@ -96,7 +86,6 @@ class FooDBCatsRepository(ICatsRepository):
 
 
 class IValueProvider:
-
     @property
     @abstractmethod
     def value(self):
@@ -105,7 +94,7 @@ class IValueProvider:
 
 class ValueProvider(IValueProvider):
 
-    __slots__ = ('_value')
+    __slots__ = "_value"
 
     def __init__(self, value):
         self._value = value
@@ -116,32 +105,28 @@ class ValueProvider(IValueProvider):
 
 
 class IdGetter:
-
     def __init__(self):
         self.value = uuid.uuid4()
 
     def __repr__(self):
-        return f'<ID {str(self.value)}>'
+        return f"<ID {str(self.value)}>"
 
     def __str__(self):
-        return f'<ID {str(self.value)}>'
+        return f"<ID {str(self.value)}>"
 
 
 class A:
-
     def __init__(self, id_getter: IdGetter):
         self.id_getter = id_getter
 
 
 class B:
-
     def __init__(self, a: A, id_getter: IdGetter):
         self.a = a
         self.id_getter = id_getter
 
 
 class C:
-
     def __init__(self, a: A, b: B, id_getter: IdGetter):
         self.a = a
         self.b = b
@@ -153,69 +138,58 @@ class ICircle(ABC):
 
 
 class Circle(ICircle):
-
     def __init__(self, circular: ICircle):
         # NB: this is not supported by DI
         self.circular = circular
 
 
 class Shape:
-
     def __init__(self, circle: Circle):
         self.circle = circle
 
 
 class Foo:
-
     def __init__(self):
         pass
 
 
 class UfoOne:
-
     def __init__(self):
         pass
 
 
 class UfoTwo:
-
     def __init__(self, one: UfoOne):
         self.one = one
 
 
 class UfoThree(UfoTwo):
-
     def __init__(self, one: UfoOne, foo: Foo):
         super().__init__(one)
         self.foo = foo
 
 
 class UfoFour(UfoThree):
-
     def __init__(self, one: UfoOne, foo: Foo):
         super().__init__(one, foo)
 
 
 class TypeWithOptional:
-
     def __init__(self, foo: Optional[Foo]):
         self.foo = foo
 
 
 class SelfReferencingCircle:
-
-    def __init__(self, circle: 'SelfReferencingCircle'):
+    def __init__(self, circle: "SelfReferencingCircle"):
         self.circular = circle
 
 
 class TrickyCircle:
-
     def __init__(self, circle: ICircle):
         self.circular = circle
 
 
 class ResolveThisByParameterName:
-
     def __init__(self, icats_repository):
         self.cats_repository = icats_repository
 
@@ -225,7 +199,6 @@ class IByParamName:
 
 
 class FooByParamName(IByParamName):
-
     def __init__(self, foo):
         self.foo = foo
 
@@ -286,7 +259,6 @@ class Ok:
 
 
 class PrecedenceOfTypeHintsOverNames:
-
     def __init__(self, foo: Q, ko: P):
         self.q = foo
         self.p = ko
