@@ -80,8 +80,7 @@ assert cat.name == "Celine"
 `rodi` is used in the [BlackSheep](https://www.neoteroi.dev/blacksheep/) web
 framework to implement [dependency
 injection](https://www.neoteroi.dev/blacksheep/dependency-injection/) for
-request handlers. Refer to the framework's documentation for more information
-on how dependency injection is
+request handlers.
 
 # Documentation
 For documentation and examples, please refer to the [wiki in GitHub,
