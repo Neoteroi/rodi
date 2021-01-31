@@ -1,4 +1,5 @@
 from abc import ABC
+from dataclasses import dataclass
 from typing import Type
 
 import pytest
@@ -8,7 +9,6 @@ from rodi import (
     AliasConfigurationError,
     CannotResolveParameterException,
     CircularDependencyException,
-    ClassNotDefiningInitMethod,
     Container,
     GetServiceContext,
     InstanceResolver,
@@ -974,7 +974,6 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
         return Logger(activating_type.__module__ + "." + activating_type.__name__)
 
     container.add_transient_by_factory(factory)
-
     container.add_instance(ServiceSettings("foo:foo"))
 
     for service_type in {
@@ -1076,16 +1075,17 @@ def test_service_provider_supports_set_simple_values():
     assert provider["three"] == 16
 
 
-def test_container_raises_for_class_without_init():
+def test_container_handles_class_without_init():
     container = Container()
 
     class WithoutInit:
         pass
 
     container.add_exact_singleton(WithoutInit)
+    provider = container.build_provider()
 
-    with raises(ClassNotDefiningInitMethod):
-        container.build_provider()
+    instance = provider.get(WithoutInit)
+    assert isinstance(instance, WithoutInit)
 
 
 def test_raises_invalid_factory_for_non_callable():
@@ -1795,3 +1795,55 @@ def test_annotation_resolution_transient():
         assert isinstance(second, A)
         assert second.dep is not None
         assert second.dep is b_singleton
+
+
+def test_annotations_abstract_type_transient_service():
+    class FooCatsRepository(ICatsRepository):
+        def get_by_id(self, _id) -> Cat:
+            return Cat("foo")
+
+    class GetCatRequestHandler:
+        cats_repository: ICatsRepository
+
+        def get_cat(self, _id):
+            cat = self.cats_repository.get_by_id(_id)
+            return cat
+
+    container = Container()
+    container.add_transient(ICatsRepository, FooCatsRepository)
+    container.add_exact_transient(GetCatRequestHandler)
+    provider = container.build_provider()
+
+    cats_repo = provider.get(ICatsRepository)
+    assert isinstance(cats_repo, FooCatsRepository)
+
+    other_cats_repo = provider.get(ICatsRepository)
+    assert cats_repo is not other_cats_repo
+
+    get_cat_handler = provider.get(GetCatRequestHandler)
+    assert isinstance(get_cat_handler, GetCatRequestHandler)
+    assert isinstance(get_cat_handler.cats_repository, FooCatsRepository)
+
+
+def test_support_for_dataclasses():
+    @dataclass
+    class Settings:
+        region: str
+
+    @dataclass
+    class GetInfoHandler:
+        service_settings: Settings
+
+        def handle_request(self):
+            return {"service_region": self.service_settings.region}
+
+    container = Container()
+    container.add_instance(Settings(region="Western Europe"))
+    container.add_exact_scoped(GetInfoHandler)
+
+    provider = container.build_provider()
+
+    info_handler = provider.get(GetInfoHandler)
+
+    assert isinstance(info_handler, GetInfoHandler)
+    assert isinstance(info_handler.service_settings, Settings)

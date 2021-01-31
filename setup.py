@@ -8,7 +8,7 @@ def readme():
 
 setup(
     name="rodi",
-    version="1.0.9",
+    version="1.1.0",
     description="Implementation of dependency injection for Python 3",
     long_description=readme(),
     long_description_content_type="text/markdown",
@@ -22,7 +22,7 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Operating System :: OS Independent",
     ],
-    url="https://github.com/RobertoPrevato/rodi",
+    url="https://github.com/Neoteroi/rodi",
     author="RobertoPrevato",
     author_email="roberto.prevato@gmail.com",
     keywords="dependency injection type hints typing convention",
