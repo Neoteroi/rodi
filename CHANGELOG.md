@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.9] - 2021-01-31 :grapes:
+## [1.1.1] - 2021-02-23 :cactus:
+- Adds support for Generics and GenericAlias `Mapping[X, Y]`, `Iterable[T]`,
+  `List[T]`, `Set[T]`, `Tuple[T, ...]`, Python 3.9 `list[T]`, etc. ([fixes
+  #9](https://github.com/Neoteroi/rodi/issues/9))
+- Improves typing-friendliness making the `ServiceProvider.get` method
+  returning a value of the input type.
+- Adds support for Python 3.10.0a5 ✨. However, when classes and functions
+  require locals, they need to be decorated. See [PEP
+  563](https://www.python.org/dev/peps/pep-0563/).
+
+## [1.1.0] - 2021-01-31 :grapes:
 - Adds support to resolve class attributes annotations
 - Changes how classes without an `__init__` method are handled
 - Updates links to the GitHub organization, [Neoteroi](https://github.com/Neoteroi)
