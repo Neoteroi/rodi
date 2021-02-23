@@ -1633,7 +1633,6 @@ def test_factories_type_scoped_consistency_nested(method_name):
     class CBase(ABC):
         pass
 
-
     @inject()
     class A(ABase):
         def __init__(self, b: BBase):
@@ -1724,7 +1723,6 @@ def test_annotation_resolution():
     class B:
         pass
 
-
     @inject()
     class A:
         dep: B
@@ -1747,7 +1745,6 @@ def test_annotation_resolution():
 def test_annotation_resolution_scoped():
     class B:
         pass
-
 
     @inject()
     class A:
@@ -2206,7 +2203,6 @@ def test_iterables_annotations_transient_factory(annotation, value):
     @inject()
     class Foo:
         items: annotation
-
 
     @inject()
     def factory() -> annotation:
