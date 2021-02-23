@@ -573,8 +573,6 @@ class FactoryResolver:
     __slots__ = ("concrete_type", "factory", "params", "life_style")
 
     def __init__(self, concrete_type, factory, life_style):
-        assert not isabstract(concrete_type)
-
         self.factory = factory
         self.concrete_type = concrete_type
         self.life_style = life_style
