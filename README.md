@@ -16,6 +16,9 @@
   injection, like _[inject](https://pypi.org/project/Inject/)_)
 * minimum overhead to obtain services, once the objects graph is built
 * support for singletons, transient, and scoped services
+* compatible with [Python
+  3.10.0a5](https://github.com/Neoteroi/rodi/wiki/Compatibility-with-Python-3.10.0a5)
+  (still in development at the time of rodi 1.1.1)
 
 This library is freely inspired by .NET Standard
 `Microsoft.Extensions.DependencyInjection` implementation (_ref. [MSDN,

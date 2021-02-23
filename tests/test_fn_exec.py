@@ -2,7 +2,7 @@
 exec functions are designed to enable executing any function injecting parameters.
 """
 import pytest
-from rodi import Container
+from rodi import Container, inject
 
 
 class Example:
@@ -35,6 +35,7 @@ def test_execute_function():
         def __init__(self):
             self.trace_id = '1111'
 
+    @inject()
     class Repository:
 
         def __init__(self, context: Context):
@@ -42,6 +43,7 @@ def test_execute_function():
 
     called = False
 
+    @inject()
     def fn(example, context: Context):
         nonlocal called
         called = True
@@ -69,6 +71,7 @@ def test_execute_function():
 def test_executor():
     called = False
 
+    @inject()
     def fn(example, context: Context):
         nonlocal called
         called = True
@@ -98,6 +101,7 @@ def test_executor():
 def test_executor_with_given_scoped_services():
     called = False
 
+    @inject()
     def fn(example, context: Context):
         nonlocal called
         called = True
@@ -129,6 +133,7 @@ def test_executor_with_given_scoped_services():
 async def test_async_executor():
     called = False
 
+    @inject()
     async def fn(example, context: Context):
         nonlocal called
         called = True

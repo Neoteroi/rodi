@@ -1,6 +1,17 @@
+import sys
 from abc import ABC
 from dataclasses import dataclass
-from typing import Type
+from typing import (
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Mapping,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+)
 
 import pytest
 from pytest import raises
@@ -8,10 +19,13 @@ from rodi import (
     AliasAlreadyDefined,
     AliasConfigurationError,
     CannotResolveParameterException,
+    CannotResolveTypeException,
     CircularDependencyException,
     Container,
+    FactoryMissingContextException,
     GetServiceContext,
     InstanceResolver,
+    inject,
     InvalidFactory,
     InvalidOperationInStrictMode,
     MissingTypeException,
@@ -20,6 +34,7 @@ from rodi import (
     Services,
     UnsupportedUnionTypeException,
     to_standard_param_name,
+    _get_factory_annotations_or_throw,
 )
 
 from tests.examples import (
@@ -63,6 +78,25 @@ from tests.examples import (
     Y,
     Z,
 )
+
+T_1 = TypeVar("T_1")
+
+
+class LoggedVar(Generic[T_1]):
+    def __init__(self, value: T_1, name: str) -> None:
+        self.name = name
+        self.value = value
+
+    def set(self, new: T_1) -> None:
+        self.log("Set " + repr(self.value))
+        self.value = new
+
+    def get(self) -> T_1:
+        self.log("Get " + repr(self.value))
+        return self.value
+
+    def log(self, message: str) -> None:
+        print(self.name, message)
 
 
 def arrange_cats_example():
@@ -333,18 +367,22 @@ def test_singleton_services():
 def test_scoped_services_context_used_more_than_once():
     container = Container()
 
+    @inject()
     class C:
         def __init__(self):
             pass
 
+    @inject()
     class B2:
         def __init__(self, c: C):
             self.c = c
 
+    @inject()
     class B1:
         def __init__(self, c: C):
             self.c = c
 
+    @inject()
     class A:
         def __init__(self, b1: B1, b2: B2):
             self.b1 = b1
@@ -559,11 +597,53 @@ def test_get_service_by_name_or_alias():
         assert isinstance(service.cat_request_handler.repo, FooDBCatsRepository)
 
 
-def test_missing_service_returns_none():
+def test_missing_service_raises_exception():
     container = Container()
     provider = container.build_provider()
-    service = provider.get("not_existing")
+
+    with pytest.raises(CannotResolveTypeException):
+        provider.get("not_existing")
+
+
+def test_missing_service_can_return_default():
+    container = Container()
+    provider = container.build_provider()
+
+    service = provider.get("not_existing", default=None)
     assert service is None
+
+
+def test_by_factory_type_annotation_simple():
+    container = Container()
+
+    def factory() -> Cat:
+        return Cat("Celine")
+
+    container.add_transient_by_factory(factory)
+    provider = container.build_provider()
+
+    cat = provider.get(Cat)
+    assert isinstance(cat, Cat)
+    assert cat.name == "Celine"
+
+
+def test_by_factory_type_annotation_simple_local():
+    container = Container()
+
+    @dataclass
+    class LocalCat:
+        name: str
+
+    @inject()
+    def service_factory() -> LocalCat:
+        return LocalCat("Celine")
+
+    container.add_transient_by_factory(service_factory)
+    provider = container.build_provider()
+
+    cat = provider.get(LocalCat)
+    assert isinstance(cat, LocalCat)
+    assert cat.name == "Celine"
 
 
 @pytest.mark.parametrize(
@@ -843,18 +923,22 @@ def test_by_factory_with_different_parameters(method_name, factory):
     "method_name", ["add_transient_by_factory", "add_scoped_by_factory"]
 )
 def test_factory_can_receive_activating_type_as_parameter(method_name):
+    @inject()
     class Logger:
         def __init__(self, name):
             self.name = name
 
+    @inject()
     class HelpController:
         def __init__(self, logger: Logger):
             self.logger = logger
 
+    @inject()
     class HomeController:
         def __init__(self, logger: Logger):
             self.logger = logger
 
+    @inject()
     class FooController:
         def __init__(self, foo: Foo, logger: Logger):
             self.foo = foo
@@ -863,6 +947,7 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
     container = Container()
     container.add_exact_transient(Foo)
 
+    @inject()
     def factory(_, activating_type) -> Logger:
         return Logger(activating_type.__module__ + "." + activating_type.__name__)
 
@@ -901,14 +986,17 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
         def __init__(self, name):
             self.name = name
 
+    @inject()
     class HelpRepo:
         def __init__(self, logger: Logger):
             self.logger = logger
 
+    @inject()
     class HelpHandler:
         def __init__(self, help_repo: HelpRepo):
             self.repo = help_repo
 
+    @inject()
     class HelpController:
         def __init__(self, logger: Logger, handler: HelpHandler):
             self.logger = logger
@@ -916,6 +1004,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
 
     container = Container()
 
+    @inject()
     def factory(_, activating_type) -> Logger:
         # NB: this scenario is tested for rolog library
         return Logger(activating_type.__module__ + "." + activating_type.__name__)
@@ -942,23 +1031,28 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
         def __init__(self, name):
             self.name = name
 
+    @inject()
     class HelpRepo:
         def __init__(self, db_context: FooDBContext, logger: Logger):
             self.db_context = db_context
             self.logger = logger
 
+    @inject()
     class HelpHandler:
         def __init__(self, help_repo: HelpRepo):
             self.repo = help_repo
 
+    @inject()
     class AnotherPathTwo:
         def __init__(self, logger: Logger):
             self.logger = logger
 
+    @inject()
     class AnotherPath:
         def __init__(self, another_path_2: AnotherPathTwo):
             self.child = another_path_2
 
+    @inject()
     class HelpController:
         def __init__(
             self, handler: HelpHandler, another_path: AnotherPath, logger: Logger
@@ -969,6 +1063,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
 
     container = Container()
 
+    @inject()
     def factory(_, activating_type) -> Logger:
         # NB: this scenario is tested for rolog library
         return Logger(activating_type.__module__ + "." + activating_type.__name__)
@@ -1307,10 +1402,12 @@ def test_scoped_services_abstract():
     class CBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
 
+    @inject()
     class B(BBase):
         def __init__(self, c: CBase):
             self.c = c
@@ -1359,6 +1456,7 @@ def test_factories_activating_transient_type_consistency(method_name):
     class BBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
@@ -1367,6 +1465,7 @@ def test_factories_activating_transient_type_consistency(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is A
@@ -1398,6 +1497,7 @@ def test_factories_activating_scoped_type_consistency(method_name):
     class BBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
@@ -1406,6 +1506,7 @@ def test_factories_activating_scoped_type_consistency(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is A
@@ -1437,6 +1538,7 @@ def test_factories_activating_singleton_type_consistency(method_name):
     class BBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
@@ -1445,6 +1547,7 @@ def test_factories_activating_singleton_type_consistency(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is A
@@ -1479,10 +1582,12 @@ def test_factories_type_transient_consistency_nested(method_name):
     class CBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
 
+    @inject()
     class B(BBase):
         def __init__(self, c: CBase):
             self.c = c
@@ -1491,6 +1596,7 @@ def test_factories_type_transient_consistency_nested(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is B
@@ -1527,10 +1633,13 @@ def test_factories_type_scoped_consistency_nested(method_name):
     class CBase(ABC):
         pass
 
+
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
 
+    @inject()
     class B(BBase):
         def __init__(self, c: CBase):
             self.c = c
@@ -1539,6 +1648,7 @@ def test_factories_type_scoped_consistency_nested(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is B
@@ -1575,10 +1685,12 @@ def test_factories_type_singleton_consistency_nested(method_name):
     class CBase(ABC):
         pass
 
+    @inject()
     class A(ABase):
         def __init__(self, b: BBase):
             self.b = b
 
+    @inject()
     class B(BBase):
         def __init__(self, c: CBase):
             self.c = c
@@ -1587,6 +1699,7 @@ def test_factories_type_singleton_consistency_nested(method_name):
         def __init__(self):
             pass
 
+    @inject()
     def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
         assert isinstance(context, GetServiceContext)
         assert activating_type is B
@@ -1611,6 +1724,8 @@ def test_annotation_resolution():
     class B:
         pass
 
+
+    @inject()
     class A:
         dep: B
 
@@ -1633,6 +1748,8 @@ def test_annotation_resolution_scoped():
     class B:
         pass
 
+
+    @inject()
     class A:
         dep: B
 
@@ -1665,10 +1782,12 @@ def test_annotation_nested_resolution_1():
     class C:
         pass
 
+    @inject()
     class B:
         dep_1: C
         dep_2: D
 
+    @inject()
     class A:
         dep: B
 
@@ -1700,16 +1819,20 @@ def test_annotation_nested_resolution_2():
     class E:
         pass
 
+    @inject()
     class D:
         dep: E
 
+    @inject()
     class C:
         dep: E
 
+    @inject()
     class B:
         dep_1: C
         dep_2: D
 
+    @inject()
     class A:
         dep: B
 
@@ -1746,6 +1869,7 @@ def test_annotation_resolution_singleton():
     class B:
         pass
 
+    @inject()
     class A:
         dep: B
 
@@ -1771,6 +1895,7 @@ def test_annotation_resolution_transient():
     class B:
         pass
 
+    @inject()
     class A:
         dep: B
 
@@ -1778,7 +1903,7 @@ def test_annotation_resolution_transient():
 
     b_singleton = B()
     container.add_instance(b_singleton)
-    container.add_exact_transient(A)
+    container.add_transient(A)
 
     provider = container.build_provider()
 
@@ -1830,6 +1955,7 @@ def test_support_for_dataclasses():
     class Settings:
         region: str
 
+    @inject()
     @dataclass
     class GetInfoHandler:
         service_settings: Settings
@@ -1847,3 +1973,258 @@ def test_support_for_dataclasses():
 
     assert isinstance(info_handler, GetInfoHandler)
     assert isinstance(info_handler.service_settings, Settings)
+
+
+def test_list():
+    container = Container()
+
+    class Foo:
+        items: list
+
+    container.add_instance(["one", "two", "three"])
+
+    container.add_exact_scoped(Foo)
+
+    provider = container.build_provider()
+
+    instance = provider.get(Foo)
+
+    assert instance.items == ["one", "two", "three"]
+
+
+def test_list_generic_alias():
+    container = Container()
+
+    def list_int_factory() -> List[int]:
+        return [1, 2, 3]
+
+    def list_str_factory() -> List[str]:
+        return ["a", "b"]
+
+    class C:
+        a: List[int]
+        b: List[str]
+
+    container.add_scoped_by_factory(list_int_factory)
+    container.add_scoped_by_factory(list_str_factory)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert instance.a == list_int_factory()
+    assert instance.b == list_str_factory()
+
+
+def test_mapping_generic_alias():
+    container = Container()
+
+    def mapping_int_factory() -> Mapping[int, int]:
+        return {1: 1, 2: 2, 3: 3}
+
+    def mapping_str_factory() -> Mapping[str, int]:
+        return {"a": 1, "b": 2, "c": 3}
+
+    class C:
+        a: Mapping[int, int]
+        b: Mapping[str, int]
+
+    container.add_scoped_by_factory(mapping_int_factory)
+    container.add_scoped_by_factory(mapping_str_factory)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert instance.a == mapping_int_factory()
+    assert instance.b == mapping_str_factory()
+
+
+def test_dict_generic_alias():
+    container = Container()
+
+    def mapping_int_factory() -> Dict[int, int]:
+        return {1: 1, 2: 2, 3: 3}
+
+    def mapping_str_factory() -> Dict[str, int]:
+        return {"a": 1, "b": 2, "c": 3}
+
+    class C:
+        a: Dict[int, int]
+        b: Dict[str, int]
+
+    container.add_scoped_by_factory(mapping_int_factory)
+    container.add_scoped_by_factory(mapping_str_factory)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert instance.a == mapping_int_factory()
+    assert instance.b == mapping_str_factory()
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason="requires Python 3.9")
+def test_list_generic_alias_list():
+    container = Container()
+
+    def list_int_factory() -> list[int]:
+        return [1, 2, 3]
+
+    def list_str_factory() -> list[str]:
+        return ["a", "b"]
+
+    class C:
+        a: list[int]
+        b: list[str]
+
+    container.add_scoped_by_factory(list_int_factory)
+    container.add_scoped_by_factory(list_str_factory)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert instance.a == list_int_factory()
+    assert instance.b == list_str_factory()
+
+
+@pytest.mark.skipif(sys.version_info < (3, 9), reason="requires Python 3.9")
+def test_dict_generic_alias_dict():
+    container = Container()
+
+    def mapping_int_factory() -> dict[int, int]:
+        return {1: 1, 2: 2, 3: 3}
+
+    def mapping_str_factory() -> dict[str, int]:
+        return {"a": 1, "b": 2, "c": 3}
+
+    class C:
+        a: dict[int, int]
+        b: dict[str, int]
+
+    container.add_scoped_by_factory(mapping_int_factory)
+    container.add_scoped_by_factory(mapping_str_factory)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert instance.a == mapping_int_factory()
+    assert instance.b == mapping_str_factory()
+
+
+def test_generic():
+    container = Container()
+
+    class A(LoggedVar[int]):
+        def __init__(self) -> None:
+            super().__init__(10, "example")
+
+    class B(LoggedVar[str]):
+        def __init__(self) -> None:
+            super().__init__("Foo", "example")
+
+    class C:
+        a: LoggedVar[int]
+        b: LoggedVar[str]
+
+    container.add_scoped(LoggedVar[int], A)
+    container.add_scoped(LoggedVar[str], B)
+    container.add_scoped(C)
+
+    provider = container.build_provider()
+
+    instance = provider.get(C)
+
+    assert isinstance(instance.a, A)
+    assert isinstance(instance.b, B)
+
+
+ITERABLES = [
+    (
+        Iterable[LoggedVar[int]],
+        [LoggedVar(1, "a"), LoggedVar(2, "b"), LoggedVar(3, "c")],
+    ),
+    (Iterable[str], ["one", "two", "three"]),
+    (List[str], ["one", "two", "three"]),
+    (Tuple[str, ...], ["one", "two", "three"]),
+    (Sequence[str], ["one", "two", "three"]),
+    (List[Cat], [Cat("A"), Cat("B"), Cat("C")]),
+]
+
+
+@pytest.mark.parametrize("annotation,value", ITERABLES)
+def test_iterables_annotations_singleton(annotation, value):
+    container = Container()
+
+    @inject()
+    class Foo:
+        items: annotation
+
+    container.add_instance(value, declared_class=annotation)
+
+    container.add_exact_scoped(Foo)
+
+    provider = container.build_provider()
+
+    instance = provider.get(Foo)
+
+    assert instance.items == value
+
+
+@pytest.mark.parametrize("annotation,value", ITERABLES)
+def test_iterables_annotations_scoped_factory(annotation, value):
+    container = Container()
+
+    @inject()
+    class Foo:
+        items: annotation
+
+    @inject()
+    def factory() -> annotation:
+        return value
+
+    container.add_scoped_by_factory(factory).add_scoped(Foo)
+
+    provider = container.build_provider()
+
+    instance = provider.get(Foo)
+
+    assert instance.items == value
+
+
+@pytest.mark.parametrize("annotation,value", ITERABLES)
+def test_iterables_annotations_transient_factory(annotation, value):
+    container = Container()
+
+    @inject()
+    class Foo:
+        items: annotation
+
+
+    @inject()
+    def factory() -> annotation:
+        return value
+
+    container.add_transient_by_factory(factory).add_scoped(Foo)
+
+    provider = container.build_provider()
+
+    instance = provider.get(Foo)
+
+    assert instance.items == value
+
+
+def test_factory_with_locals_raises():
+
+    def factory_without_context() -> None:
+        ...
+
+    with pytest.raises(FactoryMissingContextException):
+        _get_factory_annotations_or_throw(factory_without_context)
