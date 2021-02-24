@@ -493,7 +493,7 @@ class DynamicResolver:
             for key, value in sig.parameters.items()
         }
 
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 10):  # pragma: no cover
             # Python 3.10
             annotations = get_type_hints(
                 self.concrete_type.__init__,
@@ -690,7 +690,7 @@ class Services:
             for key, value in sig.parameters.items()
         }
 
-        if sys.version_info >= (3, 10):
+        if sys.version_info >= (3, 10):  # pragma: no cover
             # Python 3.10
             annotations = _get_factory_annotations_or_throw(method)
             for key, value in params.items():
@@ -1011,7 +1011,7 @@ class Container:
                 raise MissingTypeException()
             return_type = sign.return_annotation
 
-            if isinstance(return_type, str):
+            if isinstance(return_type, str):  # pragma: no cover
                 # Python 3.10
                 annotations = _get_factory_annotations_or_throw(factory)
                 return_type = annotations["return"]
