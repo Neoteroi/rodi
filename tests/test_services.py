@@ -2217,10 +2217,21 @@ def test_iterables_annotations_transient_factory(annotation, value):
     assert instance.items == value
 
 
-def test_factory_with_locals_raises():
+def test_factory_without_locals_raises():
 
     def factory_without_context() -> None:
         ...
 
     with pytest.raises(FactoryMissingContextException):
         _get_factory_annotations_or_throw(factory_without_context)
+
+
+def test_factory_with_locals_get_annotations():
+
+    @inject()
+    def factory_without_context() -> "Cat":
+        ...
+
+    annotations = _get_factory_annotations_or_throw(factory_without_context)
+
+    assert annotations["return"] is Cat
