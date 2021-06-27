@@ -2,6 +2,7 @@
 exec functions are designed to enable executing any function injecting parameters.
 """
 import pytest
+
 from rodi import Container, inject
 
 

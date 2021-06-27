@@ -15,6 +15,7 @@ from typing import (
 
 import pytest
 from pytest import raises
+
 from rodi import (
     AliasAlreadyDefined,
     AliasConfigurationError,
@@ -25,7 +26,6 @@ from rodi import (
     FactoryMissingContextException,
     GetServiceContext,
     InstanceResolver,
-    inject,
     InvalidFactory,
     InvalidOperationInStrictMode,
     MissingTypeException,
@@ -33,10 +33,10 @@ from rodi import (
     ServiceLifeStyle,
     Services,
     UnsupportedUnionTypeException,
-    to_standard_param_name,
     _get_factory_annotations_or_throw,
+    inject,
+    to_standard_param_name,
 )
-
 from tests.examples import (
     A,
     B,

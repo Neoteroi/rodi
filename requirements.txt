@@ -2,5 +2,7 @@ pytest
 pytest-cov
 pytest-asyncio
 flake8
+black
+isort
 mypy
 dataclasses==0.8; python_version < '3.7'

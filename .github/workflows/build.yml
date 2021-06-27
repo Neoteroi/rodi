@@ -49,7 +49,18 @@ jobs:
 
       - name: Run tests
         run: |
-          flake8 && pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
+          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
+
+      - name: Run linters
+        run: |
+          echo "Running linters - if build fails here, please be patient!"
+
+          flake8 $PROJECT_NAME
+          flake8 tests
+          isort --check-only $PROJECT_NAME 2>&1
+          isort --check-only tests 2>&1
+          black --check $PROJECT_NAME 2>&1
+          black --check tests 2>&1
 
       - name: Upload pytest test results
         uses: actions/upload-artifact@master

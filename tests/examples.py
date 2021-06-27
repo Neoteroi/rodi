@@ -1,6 +1,6 @@
 import uuid
-from typing import Optional
 from abc import ABC, abstractmethod
+from typing import Optional
 
 
 # domain object:
