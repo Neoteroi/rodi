@@ -7,38 +7,31 @@ from rodi import Container, inject
 
 
 class Example:
-
     def __init__(self, repository):
         self.repository = repository
 
 
 class Context:
-
     def __init__(self):
-        self.trace_id = '1111'
+        self.trace_id = "1111"
 
 
 class Repository:
-
     def __init__(self, context: Context):
         self.context = context
 
 
 def test_execute_function():
-
     class Example:
-
         def __init__(self, repository):
             self.repository = repository
 
     class Context:
-
         def __init__(self):
-            self.trace_id = '1111'
+            self.trace_id = "1111"
 
     @inject()
     class Repository:
-
         def __init__(self, context: Context):
             self.context = context
 
