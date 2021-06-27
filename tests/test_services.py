@@ -15,6 +15,7 @@ from typing import (
 
 import pytest
 from pytest import raises
+
 from rodi import (
     AliasAlreadyDefined,
     AliasConfigurationError,
@@ -25,7 +26,6 @@ from rodi import (
     FactoryMissingContextException,
     GetServiceContext,
     InstanceResolver,
-    inject,
     InvalidFactory,
     InvalidOperationInStrictMode,
     MissingTypeException,
@@ -33,10 +33,10 @@ from rodi import (
     ServiceLifeStyle,
     Services,
     UnsupportedUnionTypeException,
-    to_standard_param_name,
     _get_factory_annotations_or_throw,
+    inject,
+    to_standard_param_name,
 )
-
 from tests.examples import (
     A,
     B,
@@ -2218,7 +2218,6 @@ def test_iterables_annotations_transient_factory(annotation, value):
 
 
 def test_factory_without_locals_raises():
-
     def factory_without_context() -> None:
         ...
 
@@ -2227,7 +2226,6 @@ def test_factory_without_locals_raises():
 
 
 def test_factory_with_locals_get_annotations():
-
     @inject()
     def factory_without_context() -> "Cat":
         ...

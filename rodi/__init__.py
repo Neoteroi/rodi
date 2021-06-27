@@ -21,7 +21,6 @@ AliasesTypeHint = Dict[str, Union[Type, str]]
 
 
 T = TypeVar("T", covariant=True)
-get_type_hints
 
 
 def inject(globalsns=None, localns=None) -> Callable[..., Any]:
@@ -34,9 +33,9 @@ def inject(globalsns=None, localns=None) -> Callable[..., Any]:
         frame = inspect.currentframe()
         try:
             if localns is None:
-                localns = frame.f_back.f_locals
+                localns = frame.f_back.f_locals  # type: ignore
             if globalsns is None:
-                globalsns = frame.f_back.f_globals
+                globalsns = frame.f_back.f_globals  # type: ignore
         finally:
             del frame
 
@@ -70,7 +69,6 @@ class DIException(Exception):
 
 
 class FactoryMissingContextException(DIException):
-
     def __init__(self, function) -> None:
         super().__init__(
             f"The factory '{function.__name__}' lacks locals and globals data. "
@@ -439,7 +437,10 @@ class DynamicResolver:
         return reg(context)
 
     def _get_resolvers_for_parameters(
-        self, concrete_type, context: ResolveContext, params: Mapping[str, Dependency],
+        self,
+        concrete_type,
+        context: ResolveContext,
+        params: Mapping[str, Dependency],
     ):
         chain = context.dynamic_chain
         fns = []
@@ -498,7 +499,7 @@ class DynamicResolver:
             annotations = get_type_hints(
                 self.concrete_type.__init__,
                 vars(sys.modules[self.concrete_type.__module__]),
-                _get_obj_locals(self.concrete_type)
+                _get_obj_locals(self.concrete_type),
             )
             for key, value in params.items():
                 if key in annotations:
@@ -556,7 +557,7 @@ class DynamicResolver:
             annotations = get_type_hints(
                 concrete_type,
                 vars(sys.modules[concrete_type.__module__]),
-                _get_obj_locals(concrete_type)
+                _get_obj_locals(concrete_type),
             )
 
             if annotations:
@@ -716,7 +717,11 @@ class Services:
 
         return executor
 
-    def exec(self, method: Callable, scoped: Optional[Dict[Type, Any]] = None,) -> Any:
+    def exec(
+        self,
+        method: Callable,
+        scoped: Optional[Dict[Type, Any]] = None,
+    ) -> Any:
         try:
             executor = self._executors[method]
         except KeyError:

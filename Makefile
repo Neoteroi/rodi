@@ -27,3 +27,10 @@ test:
 
 testcov:
 	pytest --cov-report html --cov-report annotate --cov=rodi tests/
+
+
+format:
+	isort rodi
+	isort tests
+	black rodi
+	black tests
