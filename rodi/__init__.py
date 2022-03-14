@@ -731,8 +731,8 @@ class Services:
 
 
 FactoryCallableNoArguments = Callable[[], Any]
-FactoryCallableSingleArgument = Callable[[Services], Any]
-FactoryCallableTwoArguments = Callable[[Services, Type], Any]
+FactoryCallableSingleArgument = Callable[[GetServiceContext], Any]
+FactoryCallableTwoArguments = Callable[[GetServiceContext, Type], Any]
 FactoryCallableType = Union[
     FactoryCallableNoArguments,
     FactoryCallableSingleArgument,
