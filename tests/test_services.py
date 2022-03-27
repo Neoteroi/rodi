@@ -44,6 +44,7 @@ from tests.examples import (
     Cat,
     CatsController,
     Circle,
+    Circle2,
     Foo,
     FooByParamName,
     FooDBCatsRepository,
@@ -206,6 +207,16 @@ def test_raises_for_overriding_service():
 def test_raises_for_circular_dependency():
     container = Container()
     container.add_transient(ICircle, Circle)
+
+    with pytest.raises(CircularDependencyException) as context:
+        container.build_provider()
+
+    assert "Circle" in str(context.value)
+
+
+def test_raises_for_circular_dependency_class_annotation():
+    container = Container()
+    container.add_transient(ICircle, Circle2)
 
     with pytest.raises(CircularDependencyException) as context:
         container.build_provider()
@@ -2233,3 +2244,62 @@ def test_factory_with_locals_get_annotations():
     annotations = _get_factory_annotations_or_throw(factory_without_context)
 
     assert annotations["return"] is Cat
+
+
+def test_deps_github_scenario():
+    """
+    CLAHandler
+    ├── CommentsService --> GitHubCommentsAPI .
+    └── ChecksService   --> GitHubChecksAPI   .
+                                              ├── GitHubAuthHandler - GitHubSettings
+                                              ├── GitHubAuthHandler - GitHubSettings
+                                              └── HTTPClient
+    """
+
+    class HTTPClient:
+        ...
+
+    class CommentsService:
+        ...
+
+    class ChecksService:
+        ...
+
+    class CLAHandler:
+        comments_service: CommentsService
+        checks_service: ChecksService
+
+    class GitHubSettings:
+        ...
+
+    class GitHubAuthHandler:
+        settings: GitHubSettings
+        http_client: HTTPClient
+
+    class GitHubCommentsAPI(CommentsService):
+        auth_handler: GitHubAuthHandler
+        http_client: HTTPClient
+
+    class GitHubChecksAPI(ChecksService):
+        auth_handler: GitHubAuthHandler
+        http_client: HTTPClient
+
+    container = Container()
+
+    container.add_singleton(HTTPClient)
+    container.add_singleton(GitHubSettings)
+    container.add_singleton(GitHubAuthHandler)
+    container.add_singleton(CommentsService, GitHubCommentsAPI)
+    container.add_singleton(ChecksService, GitHubChecksAPI)
+    container.add_singleton(CLAHandler)
+
+    provider = container.build_provider()
+
+    cla_handler = provider.get(CLAHandler)
+    assert isinstance(cla_handler, CLAHandler)
+    assert isinstance(cla_handler.comments_service, GitHubCommentsAPI)
+    assert isinstance(cla_handler.checks_service, GitHubChecksAPI)
+    assert (
+        cla_handler.comments_service.auth_handler
+        is cla_handler.checks_service.auth_handler
+    )

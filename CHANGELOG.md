@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2022-03-27 :droplet:
+- Corrects a bug that would cause false positives when raising exceptions
+  for circular dependencies. The code now let recursion errors happen if they
+  need to happen, re-raising a circular dependency error.
+
 ## [1.1.2] - 2022-03-14 :rabbit:
 - Adds `py.typed` file
 - Applies `isort` and enforces `isort` and `black` checks in CI pipeline

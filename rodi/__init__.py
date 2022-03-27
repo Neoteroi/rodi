@@ -122,7 +122,7 @@ class OverridingServiceException(DIException):
         )
 
 
-class CircularDependencyException(DIException):
+class CircularDependencyException(DIException, RecursionError):
     """Exception risen when a circular dependency between a type and
     one of its parameters is detected."""
 
@@ -442,7 +442,6 @@ class DynamicResolver:
         context: ResolveContext,
         params: Mapping[str, Dependency],
     ):
-        chain = context.dynamic_chain
         fns = []
         services = self.services
 
@@ -479,9 +478,6 @@ class DynamicResolver:
 
             if param_type not in services._map:
                 raise CannotResolveParameterException(param_name, concrete_type)
-
-            if param_type in chain:
-                raise CircularDependencyException(chain[0], param_type)
 
             param_resolver = self._get_resolver(param_type, context)
             fns.append(param_resolver)
@@ -548,9 +544,6 @@ class DynamicResolver:
         concrete_type = self.concrete_type
 
         chain = context.dynamic_chain
-        if concrete_type in chain:
-            raise CircularDependencyException(chain[0], concrete_type)
-
         chain.append(concrete_type)
 
         if getattr(concrete_type, "__init__") is object.__init__:
@@ -561,13 +554,19 @@ class DynamicResolver:
             )
 
             if annotations:
-                return self._resolve_by_annotations(context, annotations)
+                try:
+                    return self._resolve_by_annotations(context, annotations)
+                except RecursionError:
+                    raise CircularDependencyException(chain[0], concrete_type)
 
             return FactoryResolver(
                 concrete_type, _get_plain_class_factory(concrete_type), self.life_style
             )(context)
 
-        return self._resolve_by_init_method(context)
+        try:
+            return self._resolve_by_init_method(context)
+        except RecursionError:
+            raise CircularDependencyException(chain[0], concrete_type)
 
 
 class FactoryResolver:
