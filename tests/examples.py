@@ -143,6 +143,10 @@ class Circle(ICircle):
         self.circular = circular
 
 
+class Circle2(ICircle):
+    circular: ICircle
+
+
 class Shape:
     def __init__(self, circle: Circle):
         self.circle = circle
