@@ -16,10 +16,10 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10"]
+        python-version: [3.8, 3.9, "3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v1
@@ -28,7 +28,7 @@ jobs:
           submodules: false
 
       - name: Use Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -76,28 +76,28 @@ jobs:
 
       - name: Install distribution dependencies
         run: pip install --upgrade twine setuptools wheel
-        if: matrix.python-version == 3.8 || matrix.python-version == 3.9
+        if: matrix.python-version == 3.9 || matrix.python-version == 3.10
 
       - name: Create distribution package
         run: python setup.py sdist bdist_wheel
-        if: matrix.python-version == 3.8 || matrix.python-version == 3.9
+        if: matrix.python-version == 3.9 || matrix.python-version == 3.10
 
       - name: Upload distribution package
         uses: actions/upload-artifact@master
         with:
           name: dist-package-${{ matrix.python-version }}
           path: dist
-        if: matrix.python-version == 3.8 || matrix.python-version == 3.9
+        if: matrix.python-version == 3.9 || matrix.python-version == 3.10
 
   publish:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     needs: build
     if: github.event_name == 'release'
     steps:
       - name: Download a distribution artifact
         uses: actions/download-artifact@v2
         with:
-          name: dist-package-3.9
+          name: dist-package-3.10
           path: dist
       - name: Publish distribution 📦 to Test PyPI
         uses: pypa/gh-action-pypi-publish@master
