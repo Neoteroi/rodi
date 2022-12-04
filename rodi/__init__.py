@@ -7,9 +7,11 @@ from inspect import Signature, _empty, isabstract, isclass, iscoroutinefunction
 from typing import (
     Any,
     Callable,
+    DefaultDict,
     Dict,
     Mapping,
     Optional,
+    Set,
     Type,
     TypeVar,
     Union,
@@ -17,8 +19,7 @@ from typing import (
     get_type_hints,
 )
 
-AliasesTypeHint = Dict[str, Union[Type, str]]
-
+AliasesTypeHint = Dict[str, Type]
 
 T = TypeVar("T", covariant=True)
 
@@ -122,7 +123,7 @@ class OverridingServiceException(DIException):
         )
 
 
-class CircularDependencyException(DIException, RecursionError):
+class CircularDependencyException(DIException):
     """Exception risen when a circular dependency between a type and
     one of its parameters is detected."""
 
@@ -226,6 +227,7 @@ class GetServiceContext:
 
 class ResolveContext:
     __slots__ = ("resolved", "dynamic_chain")
+    __deletable__ = ("resolved",)
 
     def __init__(self):
         self.resolved = {}
@@ -420,7 +422,7 @@ class DynamicResolver:
         self.life_style = life_style
 
     @property
-    def concrete_type(self):
+    def concrete_type(self) -> Type:
         return self._concrete_type
 
     def _get_resolver(self, desired_type, context: ResolveContext):
@@ -740,7 +742,6 @@ FactoryCallableType = Union[
 
 
 class FactoryWrapperNoArgs:
-
     __slots__ = ("factory",)
 
     def __init__(self, factory):
@@ -767,9 +768,9 @@ class Container:
     __slots__ = ("_map", "_aliases", "_exact_aliases", "strict")
 
     def __init__(self, strict: bool = False):
-        self._map = {}
-        self._aliases = None if strict else defaultdict(set)
-        self._exact_aliases = None if strict else {}
+        self._map: Dict[Type, Callable] = {}
+        self._aliases: DefaultDict[str, Set[Type]] = defaultdict(set)
+        self._exact_aliases: Dict[str, Type] = {}
         self.strict = strict
 
     def __contains__(self, key):
@@ -984,7 +985,8 @@ class Container:
         self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
         return self
 
-    def _check_factory(self, factory, signature, handled_type) -> None:
+    @staticmethod
+    def _check_factory(factory, signature, handled_type) -> Callable:
         assert callable(factory), "The factory must be callable"
 
         params_len = len(signature.parameters)
@@ -1021,7 +1023,7 @@ class Container:
                 return_type = annotations["return"]
 
         self._bind(
-            return_type,
+            return_type,  # type: ignore
             FactoryResolver(
                 return_type, self._check_factory(factory, sign, return_type), life_style
             ),
@@ -1039,7 +1041,7 @@ class Container:
         :return: Service provider that can be used to activate and obtain services.
         """
         with ResolveContext() as context:
-            _map = {}
+            _map: Dict[Union[str, Type], Type] = {}
 
             for _type, resolver in self._map.items():
                 # NB: do not call resolver if one was already prepared for the type
