@@ -7,14 +7,16 @@ from inspect import Signature, _empty, isabstract, isclass, iscoroutinefunction
 from typing import (
     Any,
     Callable,
+    DefaultDict,
     Dict,
     Mapping,
     Optional,
+    Set,
     Type,
     TypeVar,
     Union,
     cast,
-    get_type_hints, DefaultDict, Set,
+    get_type_hints,
 )
 
 AliasesTypeHint = Dict[str, Type]
@@ -52,7 +54,7 @@ def _get_obj_locals(obj) -> Optional[Dict[str, Any]]:
 
 def class_name(input_type):
     if input_type in {list, set} and str(
-            type(input_type) == "<class 'types.GenericAlias'>"
+        type(input_type) == "<class 'types.GenericAlias'>"
     ):
         # for Python 3.9 list[T], set[T]
         return str(input_type)
@@ -366,10 +368,10 @@ class SingletonTypeProvider:
 
 
 def get_annotations_type_provider(
-        concrete_type: Type,
-        resolvers: Mapping[str, Callable],
-        life_style: ServiceLifeStyle,
-        resolver_context: ResolveContext,
+    concrete_type: Type,
+    resolvers: Mapping[str, Callable],
+    life_style: ServiceLifeStyle,
+    resolver_context: ResolveContext,
 ):
     def factory(context, parent_type):
         instance = concrete_type()
@@ -437,10 +439,10 @@ class DynamicResolver:
         return reg(context)
 
     def _get_resolvers_for_parameters(
-            self,
-            concrete_type,
-            context: ResolveContext,
-            params: Mapping[str, Dependency],
+        self,
+        concrete_type,
+        context: ResolveContext,
+        params: Mapping[str, Dependency],
     ):
         fns = []
         services = self.services
@@ -471,7 +473,7 @@ class DynamicResolver:
 
                     if aliases:
                         assert (
-                                len(aliases) == 1
+                            len(aliases) == 1
                         ), "Configured aliases cannot be ambiguous"
                         for param_type in aliases:
                             break
@@ -523,7 +525,7 @@ class DynamicResolver:
         return ArgsTypeProvider(concrete_type, fns)
 
     def _resolve_by_annotations(
-            self, context: ResolveContext, annotations: Dict[str, Type]
+        self, context: ResolveContext, annotations: Dict[str, Type]
     ):
         params = {key: Dependency(key, value) for key, value in annotations.items()}
         concrete_type = self.concrete_type
@@ -632,7 +634,7 @@ class Services:
         """
         type_name = class_name(new_type)
         if new_type in self._map or (
-                not isinstance(new_type, str) and type_name in self._map
+            not isinstance(new_type, str) and type_name in self._map
         ):
             raise OverridingServiceException(self._map[new_type], new_type)
 
@@ -644,11 +646,11 @@ class Services:
             self._map[type_name] = resolver
 
     def get(
-            self,
-            desired_type: Union[Type[T], str],
-            context: Optional[GetServiceContext] = None,
-            *,
-            default: Optional[Any] = ...,
+        self,
+        desired_type: Union[Type[T], str],
+        context: Optional[GetServiceContext] = None,
+        *,
+        default: Optional[Any] = ...,
     ) -> T:
         """
         Gets a service of the desired type, returning an activated instance.
@@ -703,6 +705,7 @@ class Services:
             fns.append(self._get_getter(key, value))
 
         if iscoroutinefunction(method):
+
             async def async_executor(scoped: Optional[Dict[Type, Any]] = None):
                 with GetServiceContext(self, scoped) as context:
                     return await method(*[fn(context) for fn in fns])
@@ -716,9 +719,9 @@ class Services:
         return executor
 
     def exec(
-            self,
-            method: Callable,
-            scoped: Optional[Dict[Type, Any]] = None,
+        self,
+        method: Callable,
+        scoped: Optional[Dict[Type, Any]] = None,
     ) -> Any:
         try:
             executor = self._executors[method]
@@ -774,7 +777,7 @@ class Container:
         return key in self._map
 
     def register(
-            self, base_type: Type, concrete_type: Type, life_style: ServiceLifeStyle
+        self, base_type: Type, concrete_type: Type, life_style: ServiceLifeStyle
     ):
         try:
             assert issubclass(concrete_type, base_type), (
@@ -856,7 +859,7 @@ class Container:
         self._aliases[to_standard_param_name(key_name)].add(key)
 
     def add_instance(
-            self, instance: Any, declared_class: Optional[Type] = None
+        self, instance: Any, declared_class: Optional[Type] = None
     ) -> "Container":
         """
         Registers an exact instance, optionally by declared class.
@@ -873,7 +876,7 @@ class Container:
         return self
 
     def add_singleton(
-            self, base_type: Type, concrete_type: Optional[Type] = None
+        self, base_type: Type, concrete_type: Optional[Type] = None
     ) -> "Container":
         """
         Registers a type by base type, to be instantiated with singleton lifetime.
@@ -890,7 +893,7 @@ class Container:
         return self.register(base_type, concrete_type, ServiceLifeStyle.SINGLETON)
 
     def add_scoped(
-            self, base_type: Type, concrete_type: Optional[Type] = None
+        self, base_type: Type, concrete_type: Optional[Type] = None
     ) -> "Container":
         """
         Registers a type by base type, to be instantiated with scoped lifetime.
@@ -907,7 +910,7 @@ class Container:
         return self.register(base_type, concrete_type, ServiceLifeStyle.SCOPED)
 
     def add_transient(
-            self, base_type: Type, concrete_type: Optional[Type] = None
+        self, base_type: Type, concrete_type: Optional[Type] = None
     ) -> "Container":
         """
         Registers a type by base type, to be instantiated with transient lifetime.
@@ -965,19 +968,19 @@ class Container:
         return self
 
     def add_singleton_by_factory(
-            self, factory: FactoryCallableType, return_type: Optional[Type] = None
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
     ) -> "Container":
         self.register_factory(factory, return_type, ServiceLifeStyle.SINGLETON)
         return self
 
     def add_transient_by_factory(
-            self, factory: FactoryCallableType, return_type: Optional[Type] = None
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
     ) -> "Container":
         self.register_factory(factory, return_type, ServiceLifeStyle.TRANSIENT)
         return self
 
     def add_scoped_by_factory(
-            self, factory: FactoryCallableType, return_type: Optional[Type] = None
+        self, factory: FactoryCallableType, return_type: Optional[Type] = None
     ) -> "Container":
         self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
         return self
@@ -1000,10 +1003,10 @@ class Container:
         raise InvalidFactory(handled_type)
 
     def register_factory(
-            self,
-            factory: Callable,
-            return_type: Optional[Type],
-            life_style: ServiceLifeStyle,
+        self,
+        factory: Callable,
+        return_type: Optional[Type],
+        life_style: ServiceLifeStyle,
     ) -> None:
         if not callable(factory):
             raise InvalidFactory(return_type)
