@@ -1,3 +1,4 @@
+from mypyc.build import mypycify
 from setuptools import setup
 
 
@@ -30,6 +31,7 @@ setup(
     keywords="dependency injection type hints typing convention",
     license="MIT",
     packages=["rodi"],
+    ext_modules=mypycify(["rodi/__init__.py"]),  # type: ignore
     install_requires=[],
     include_package_data=True,
     zip_safe=False,
