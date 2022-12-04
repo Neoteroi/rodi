@@ -1,15 +1,20 @@
 name: Build
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
   push:
     branches:
       - main
       - ci
+    paths-ignore:
+      - README.md
   pull_request:
     branches:
       - "*"
+    paths-ignore:
+      - README.md
 
 env:
   PROJECT_NAME: rodi
@@ -32,7 +37,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: actions/cache@v1
+      - uses: actions/cache@v3
         id: depcache
         with:
           path: deps
@@ -89,9 +94,58 @@ jobs:
           path: dist
         if: matrix.python-version == 3.9 || matrix.python-version == 3.10
 
+  build-wheels:
+    needs: build
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 9
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade setuptools pip wheel
+
+      - name: Build wheels (linux)
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: docker://quay.io/pypa/manylinux2014_x86_64
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        with:
+          entrypoint: /github/workspace/.github/workflows/build-manylinux-wheels.sh
+
+      - name: Build wheels (non-linux)
+        if: "!startsWith(matrix.os, 'ubuntu')"
+        run: |
+          python setup.py bdist_wheel
+
+      - uses: actions/upload-artifact@v1
+        with:
+          name: dist
+          path: dist
+
+      - name: Test wheels
+        if: |
+          !startsWith(matrix.os, 'windows')
+        run: |
+          pip install rodi -f "file:///${GITHUB_WORKSPACE}/dist"
+          pip freeze | grep rodi
+
   publish:
     runs-on: ubuntu-latest
-    needs: build
+    needs: [build, build-wheels]
     if: github.event_name == 'release'
     steps:
       - name: Download a distribution artifact
