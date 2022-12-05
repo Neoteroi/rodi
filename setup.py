@@ -9,7 +9,7 @@ def readme():
 
 setup(
     name="rodi",
-    version="1.1.3",
+    version="1.1.4",
     description="Implementation of dependency injection for Python 3",
     long_description=readme(),
     long_description_content_type="text/markdown",

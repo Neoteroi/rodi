@@ -7,6 +7,7 @@
 # Implementation of dependency injection for Python 3
 
 **Features:**
+
 * types resolution by signature types annotations (_type hints_)
 * types resolution by class annotations (_type hints_) (new in version 1.1.0 :star:)
 * types resolution by constructor parameter names and aliases (_convention over
@@ -16,9 +17,7 @@
   injection, like _[inject](https://pypi.org/project/Inject/)_)
 * minimum overhead to obtain services, once the objects graph is built
 * support for singletons, transient, and scoped services
-* compatible with [Python
-  3.10.0a5](https://github.com/Neoteroi/rodi/wiki/Compatibility-with-Python-3.10.0a5)
-  (still in development at the time of rodi 1.1.1)
+* using `mypyc` for improved performance (see [#19](https://github.com/Neoteroi/rodi/issues/19))
 
 This library is freely inspired by .NET Standard
 `Microsoft.Extensions.DependencyInjection` implementation (_ref. [MSDN,
