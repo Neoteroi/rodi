@@ -13,7 +13,7 @@ fi
 # Compile wheels
 PYTHON="/opt/python/${ML_PYTHON_VERSION}/bin/python"
 PIP="/opt/python/${ML_PYTHON_VERSION}/bin/pip"
-"${PIP}" install --upgrade setuptools pip wheel
+"${PIP}" install --upgrade setuptools pip wheel mypy
 cd "${GITHUB_WORKSPACE}"
 
 rm -rf dist/
