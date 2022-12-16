@@ -204,7 +204,11 @@ def _get_factory_annotations_or_throw(factory):
 class GetServiceContext:
     __slots__ = ("scoped_services", "provider", "types_chain")
 
-    def __init__(self, provider=None, scoped_services=None):
+    def __init__(
+        self,
+        provider: Optional["Services"] = None,
+        scoped_services: Optional[Dict[Type[T], T]] = None,
+    ):
         self.provider = provider
         self.scoped_services = scoped_services or {}
 
