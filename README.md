@@ -17,7 +17,6 @@
   injection, like _[inject](https://pypi.org/project/Inject/)_)
 * minimum overhead to obtain services, once the objects graph is built
 * support for singletons, transient, and scoped services
-* using `mypyc` for improved performance (see [#19](https://github.com/Neoteroi/rodi/issues/19))
 
 This library is freely inspired by .NET Standard
 `Microsoft.Extensions.DependencyInjection` implementation (_ref. [MSDN,

@@ -5,10 +5,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.1.4] - 2022-12-05 :star:
-- Merges [MaximZayats´](https://github.com/MaximZayats) contribution, to
-  improve performance using `mypyc`
-- Modifies the GitHub Workflow to build and distribute compiled `wheels`
+## [1.1.4] - ??? :star:
+- Replaces `setup.py` with `pyproject.toml`
 
 ## [1.1.3] - 2022-03-27 :droplet:
 - Corrects a bug that would cause false positives when raising exceptions
