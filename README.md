@@ -32,6 +32,7 @@ pip install rodi
 ```
 
 ## De gustibus non disputandum est
+
 This library is designed to work both by type hints in constructor signatures,
 and by constructor parameter names (convention over configuration), like
 described in below diagram. It can be useful for those who like type hinting,
@@ -41,7 +42,8 @@ those who don't, and those who like having both options.
 option](https://raw.githubusercontent.com/Neoteroi/rodi/master/documentation/rodi-design-taste.png
 "Usage option")
 
-## Minimum overhead
+## Performant
+
 `rodi` works by inspecting __&#95;&#95;init&#95;&#95;__ methods **once** at
 runtime, to generate functions that return instances of desired types.
 Validation steps, for example to detect circular dependencies or missing
@@ -72,17 +74,20 @@ assert cat.name == "Celine"
 ```
 
 ## Service life style:
+
 * singleton - instantiated only once per service provider
 * transient - services are instantiated every time they are required
 * scoped - instantiated only once per service resolution (root call, e.g. once
   per web request)
 
 ## Usage in BlackSheep
+
 `rodi` is used in the [BlackSheep](https://www.neoteroi.dev/blacksheep/) web
 framework to implement [dependency
 injection](https://www.neoteroi.dev/blacksheep/dependency-injection/) for
 request handlers.
 
 # Documentation
+
 For documentation and examples, please refer to the [wiki in GitHub,
 https://github.com/Neoteroi/rodi/wiki](https://github.com/Neoteroi/rodi/wiki).

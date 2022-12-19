@@ -11,6 +11,7 @@ from typing import (
     Dict,
     Mapping,
     Optional,
+    Protocol,
     Set,
     Type,
     TypeVar,
@@ -19,9 +20,29 @@ from typing import (
     get_type_hints,
 )
 
-AliasesTypeHint = Dict[str, Type]
 
-T = TypeVar("T", covariant=True)
+T = TypeVar("T")
+
+
+class ContainerProtocol(Protocol):
+    """
+    Generic interface of DI Container that can register and resolve services,
+    and tell if a type is configured.
+    """
+
+    def register(self, obj_type: Union[Type, str], *args, **kwargs):
+        """Registers a type in the container, with optional arguments."""
+
+    def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> T:
+        """Activates an instance of the given type, with optional arguments."""
+
+    def __contains__(self, item) -> bool:
+        """
+        Returns a value indicating whether a given type is configured in this container.
+        """
+
+
+AliasesTypeHint = Dict[str, Type]
 
 
 def inject(globalsns=None, localns=None) -> Callable[..., Any]:
@@ -201,8 +222,8 @@ def _get_factory_annotations_or_throw(factory):
     return get_type_hints(factory, globalns=factory_globals, localns=factory_locals)
 
 
-class GetServiceContext:
-    __slots__ = ("scoped_services", "provider", "types_chain")
+class ActivationScope:
+    __slots__ = ("scoped_services", "provider")
 
     def __init__(
         self,
@@ -229,7 +250,7 @@ class GetServiceContext:
             self.scoped_services = None
 
 
-class ResolveContext:
+class ResolutionContext:
     __slots__ = ("resolved", "dynamic_chain")
     __deletable__ = ("resolved",)
 
@@ -274,7 +295,7 @@ class ScopedTypeProvider:
     def __init__(self, _type):
         self._type = _type
 
-    def __call__(self, context: GetServiceContext, parent_type):
+    def __call__(self, context: ActivationScope, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
@@ -301,8 +322,8 @@ class FactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: GetServiceContext, parent_type):
-        assert isinstance(context, GetServiceContext)
+    def __call__(self, context: ActivationScope, parent_type):
+        assert isinstance(context, ActivationScope)
         return self.factory(context, parent_type)
 
 
@@ -314,7 +335,7 @@ class SingletonFactoryTypeProvider:
         self.factory = factory
         self.instance = None
 
-    def __call__(self, context: GetServiceContext, parent_type):
+    def __call__(self, context: ActivationScope, parent_type):
         if self.instance is None:
             self.instance = self.factory(context, parent_type)
         return self.instance
@@ -327,7 +348,7 @@ class ScopedFactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: GetServiceContext, parent_type):
+    def __call__(self, context: ActivationScope, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
@@ -343,7 +364,7 @@ class ScopedArgsTypeProvider:
         self._type = _type
         self._args_callbacks = args_callbacks
 
-    def __call__(self, context: GetServiceContext, parent_type):
+    def __call__(self, context: ActivationScope, parent_type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
@@ -375,7 +396,7 @@ def get_annotations_type_provider(
     concrete_type: Type,
     resolvers: Mapping[str, Callable],
     life_style: ServiceLifeStyle,
-    resolver_context: ResolveContext,
+    resolver_context: ResolutionContext,
 ):
     def factory(context, parent_type):
         instance = concrete_type()
@@ -402,7 +423,7 @@ class InstanceResolver:
     def __repr__(self):
         return f"<Singleton {class_name(self.instance.__class__)}>"
 
-    def __call__(self, context: ResolveContext):
+    def __call__(self, context: ResolutionContext):
         return InstanceProvider(self.instance)
 
 
@@ -429,7 +450,7 @@ class DynamicResolver:
     def concrete_type(self) -> Type:
         return self._concrete_type
 
-    def _get_resolver(self, desired_type, context: ResolveContext):
+    def _get_resolver(self, desired_type, context: ResolutionContext):
         # NB: the following two lines are important to ensure that singletons
         # are instantiated only once per service provider
         # to not repeat operations more than once
@@ -437,15 +458,15 @@ class DynamicResolver:
             return context.resolved[desired_type]
 
         reg = self.services._map.get(desired_type)
-        assert reg is not None, (
-            f"A resolver for type {class_name(desired_type)} " f"is not configured"
-        )
+        assert (
+            reg is not None
+        ), f"A resolver for type {class_name(desired_type)} is not configured"
         return reg(context)
 
     def _get_resolvers_for_parameters(
         self,
         concrete_type,
-        context: ResolveContext,
+        context: ResolutionContext,
         params: Mapping[str, Dependency],
     ):
         fns = []
@@ -489,7 +510,7 @@ class DynamicResolver:
             fns.append(param_resolver)
         return fns
 
-    def _resolve_by_init_method(self, context: ResolveContext):
+    def _resolve_by_init_method(self, context: ResolutionContext):
         sig = Signature.from_callable(self.concrete_type.__init__)
         params = {
             key: Dependency(key, value.annotation)
@@ -529,7 +550,7 @@ class DynamicResolver:
         return ArgsTypeProvider(concrete_type, fns)
 
     def _resolve_by_annotations(
-        self, context: ResolveContext, annotations: Dict[str, Type]
+        self, context: ResolutionContext, annotations: Dict[str, Type]
     ):
         params = {key: Dependency(key, value) for key, value in annotations.items()}
         concrete_type = self.concrete_type
@@ -546,7 +567,7 @@ class DynamicResolver:
             self.concrete_type, resolvers, self.life_style, context
         )
 
-    def __call__(self, context: ResolveContext):
+    def __call__(self, context: ResolutionContext):
         concrete_type = self.concrete_type
 
         chain = context.dynamic_chain
@@ -583,7 +604,7 @@ class FactoryResolver:
         self.concrete_type = concrete_type
         self.life_style = life_style
 
-    def __call__(self, context: ResolveContext):
+    def __call__(self, context: ResolutionContext):
         if self.life_style == ServiceLifeStyle.SINGLETON:
             return SingletonFactoryTypeProvider(self.concrete_type, self.factory)
 
@@ -606,8 +627,7 @@ def to_standard_param_name(name):
 
 class Services:
     """
-    Provides methods to activate instances of classes,
-    by cached activator functions.
+    Provides methods to activate instances of classes, by cached activator functions.
     """
 
     __slots__ = ("_map", "_executors")
@@ -652,7 +672,7 @@ class Services:
     def get(
         self,
         desired_type: Union[Type[T], str],
-        context: Optional[GetServiceContext] = None,
+        context: Optional[ActivationScope] = None,
         *,
         default: Optional[Any] = ...,
     ) -> T:
@@ -664,7 +684,7 @@ class Services:
         :return: an instance of the desired type
         """
         if context is None:
-            context = GetServiceContext(self)
+            context = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
 
@@ -711,13 +731,13 @@ class Services:
         if iscoroutinefunction(method):
 
             async def async_executor(scoped: Optional[Dict[Type, Any]] = None):
-                with GetServiceContext(self, scoped) as context:
+                with ActivationScope(self, scoped) as context:
                     return await method(*[fn(context) for fn in fns])
 
             return async_executor
 
         def executor(scoped: Optional[Dict[Type, Any]] = None):
-            with GetServiceContext(self, scoped) as context:
+            with ActivationScope(self, scoped) as context:
                 return method(*[fn(context) for fn in fns])
 
         return executor
@@ -736,8 +756,8 @@ class Services:
 
 
 FactoryCallableNoArguments = Callable[[], Any]
-FactoryCallableSingleArgument = Callable[[GetServiceContext], Any]
-FactoryCallableTwoArguments = Callable[[GetServiceContext, Type], Any]
+FactoryCallableSingleArgument = Callable[[ActivationScope], Any]
+FactoryCallableTwoArguments = Callable[[ActivationScope, Type], Any]
 FactoryCallableType = Union[
     FactoryCallableNoArguments,
     FactoryCallableSingleArgument,
@@ -765,35 +785,72 @@ class FactoryWrapperContextArg:
         return self.factory(context)
 
 
-class Container:
+class Container(ContainerProtocol):
     """
-    Configuration class for a collection of services."""
+    Configuration class for a collection of services.
+    """
 
     __slots__ = ("_map", "_aliases", "_exact_aliases", "strict")
 
-    def __init__(self, strict: bool = False):
+    def __init__(self, *, strict: bool = False):
         self._map: Dict[Type, Callable] = {}
         self._aliases: DefaultDict[str, Set[Type]] = defaultdict(set)
         self._exact_aliases: Dict[str, Type] = {}
+        self._provider: Optional[Services] = None
         self.strict = strict
+
+    @property
+    def provider(self) -> Services:
+        if self._provider is None:
+            self._provider = self.build_provider()
+        return self._provider
 
     def __contains__(self, key):
         return key in self._map
 
-    def register(
-        self, base_type: Type, concrete_type: Type, life_style: ServiceLifeStyle
+    def bind_types(
+        self,
+        obj_type: Any,
+        concrete_type: Any = None,
+        life_style: ServiceLifeStyle = ServiceLifeStyle.TRANSIENT,
     ):
         try:
-            assert issubclass(concrete_type, base_type), (
-                f"Cannot register {class_name(base_type)} for abstract class "
+            assert issubclass(concrete_type, obj_type), (
+                f"Cannot register {class_name(obj_type)} for abstract class "
                 f"{class_name(concrete_type)}"
             )
         except TypeError:
             # ignore, this happens with generic types
             pass
-
-        self._bind(base_type, DynamicResolver(concrete_type, self, life_style))
+        self._bind(obj_type, DynamicResolver(concrete_type, self, life_style))
         return self
+
+    def register(
+        self,
+        obj_type: Any,
+        sub_type: Any = None,
+        instance: Any = None,
+        *args,
+        **kwargs,
+    ) -> "Container":
+        """
+        Registers a type in this container.
+        """
+        if instance is not None:
+            self.add_instance(instance, declared_class=obj_type)
+            return self
+
+        if sub_type is None:
+            self.add_exact_transient(obj_type)
+        else:
+            self.add_transient(obj_type, sub_type)
+        return self
+
+    def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> T:
+        """
+        Resolves a service by type, obtaining an instance of that type.
+        """
+        return self.provider.get(obj_type)
 
     def add_alias(self, name: str, desired_type: Type):
         """
@@ -894,7 +951,7 @@ class Container:
         if concrete_type is None:
             return self.add_exact_singleton(base_type)
 
-        return self.register(base_type, concrete_type, ServiceLifeStyle.SINGLETON)
+        return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SINGLETON)
 
     def add_scoped(
         self, base_type: Type, concrete_type: Optional[Type] = None
@@ -911,10 +968,10 @@ class Container:
         if concrete_type is None:
             return self.add_exact_scoped(base_type)
 
-        return self.register(base_type, concrete_type, ServiceLifeStyle.SCOPED)
+        return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SCOPED)
 
     def add_transient(
-        self, base_type: Type, concrete_type: Optional[Type] = None
+        self, base_type: Type, concrete_type: Optional[Type] = None, **kwargs
     ) -> "Container":
         """
         Registers a type by base type, to be instantiated with transient lifetime.
@@ -928,7 +985,9 @@ class Container:
         if concrete_type is None:
             return self.add_exact_transient(base_type)
 
-        return self.register(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
+        return self.bind_types(
+            base_type, concrete_type, ServiceLifeStyle.TRANSIENT, **kwargs
+        )
 
     def add_exact_singleton(self, concrete_type: Type) -> "Container":
         """
@@ -1035,8 +1094,8 @@ class Container:
 
     def build_provider(self) -> Services:
         """
-        Builds and returns a service provider that can be used to activate and
-        obtain services.
+        Builds and returns a service provider that can be used to activate and obtain
+        services.
 
         The configuration of services is validated at this point, if any service cannot
         be instantiated due to missing dependencies, an exception is thrown inside this
@@ -1044,7 +1103,7 @@ class Container:
 
         :return: Service provider that can be used to activate and obtain services.
         """
-        with ResolveContext() as context:
+        with ResolutionContext() as context:
             _map: Dict[Union[str, Type], Type] = {}
 
             for _type, resolver in self._map.items():

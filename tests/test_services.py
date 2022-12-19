@@ -23,8 +23,9 @@ from rodi import (
     CannotResolveTypeException,
     CircularDependencyException,
     Container,
+    ContainerProtocol,
     FactoryMissingContextException,
-    GetServiceContext,
+    ActivationScope,
     InstanceResolver,
     InvalidFactory,
     InvalidOperationInStrictMode,
@@ -363,7 +364,7 @@ def test_singleton_services():
     container.add_exact_singleton(IdGetter)
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         a = provider.get(IdGetter, context)
         b = provider.get(IdGetter, context)
         c = provider.get(IdGetter, context)
@@ -406,7 +407,7 @@ def test_scoped_services_context_used_more_than_once():
 
     provider = container.build_provider()
 
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     with context:
         a = provider.get(A, context)
@@ -431,7 +432,7 @@ def test_scoped_services_context_used_more_than_once_manual_dispose():
     container.add_instance("value")
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     context.dispose()
     assert context.provider is None
@@ -442,7 +443,7 @@ def test_transient_services():
     container.add_exact_transient(IdGetter)
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         a = provider.get(IdGetter, context)
         b = provider.get(IdGetter, context)
         c = provider.get(IdGetter, context)
@@ -461,7 +462,7 @@ def test_scoped_services():
     container.add_exact_scoped(IdGetter)
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         a = provider.get(IdGetter, context)
         b = provider.get(IdGetter, context)
         c = provider.get(IdGetter, context)
@@ -478,7 +479,7 @@ def test_scoped_services_with_shortcut():
     container.add_scoped(IdGetter)
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         a = provider.get(IdGetter, context)
         b = provider.get(IdGetter, context)
         c = provider.get(IdGetter, context)
@@ -545,7 +546,7 @@ def test_exact_alias():
         def __init__(self, example):
             self.cats_controller = example
 
-    container.add_exact_transient(UsingAlias)
+    container.add_transient(UsingAlias)
 
     # arrange an exact alias for UsingAlias class init parameter:
     container.set_alias("example", CatsController)
@@ -688,7 +689,7 @@ def test_by_factory_type_annotation(method_name):
         assert provider.get(Cat) is not cat
 
     if method_name == "add_scoped_by_factory":
-        with GetServiceContext() as context:
+        with ActivationScope() as context:
             cat_2 = provider.get(Cat, context)
             assert cat_2 is not cat
 
@@ -755,7 +756,7 @@ def test_add_singleton_by_factory_given_type(method_name):
         assert provider.get(Cat) is not cat
 
     if method_name == "add_scoped_by_factory":
-        with GetServiceContext() as context:
+        with ActivationScope() as context:
             cat_2 = provider.get(Cat, context)
             assert cat_2 is not cat
 
@@ -890,12 +891,12 @@ def cat_factory_no_args() -> Cat:
 
 
 def cat_factory_with_context(context) -> Cat:
-    assert isinstance(context, GetServiceContext)
+    assert isinstance(context, ActivationScope)
     return Cat("Celine")
 
 
 def cat_factory_with_context_and_activating_type(context, activating_type) -> Cat:
-    assert isinstance(context, GetServiceContext)
+    assert isinstance(context, ActivationScope)
     assert activating_type is Cat
     return Cat("Celine")
 
@@ -1388,7 +1389,7 @@ def test_scoped_services_exact():
     container.add_exact_scoped(C)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(A, context)
     assert isinstance(a, A)
@@ -1432,7 +1433,7 @@ def test_scoped_services_abstract():
     container.add_scoped(CBase, C)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1477,8 +1478,8 @@ def test_factories_activating_transient_type_consistency(method_name):
             pass
 
     @inject()
-    def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
-        assert isinstance(context, GetServiceContext)
+    def bbase_factory(context: ActivationScope, activating_type: Type) -> BBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is A
         return B()
 
@@ -1488,7 +1489,7 @@ def test_factories_activating_transient_type_consistency(method_name):
     method(bbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1518,8 +1519,8 @@ def test_factories_activating_scoped_type_consistency(method_name):
             pass
 
     @inject()
-    def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
-        assert isinstance(context, GetServiceContext)
+    def bbase_factory(context: ActivationScope, activating_type: Type) -> BBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is A
         return B()
 
@@ -1529,7 +1530,7 @@ def test_factories_activating_scoped_type_consistency(method_name):
     method(bbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1559,8 +1560,8 @@ def test_factories_activating_singleton_type_consistency(method_name):
             pass
 
     @inject()
-    def bbase_factory(context: GetServiceContext, activating_type: Type) -> BBase:
-        assert isinstance(context, GetServiceContext)
+    def bbase_factory(context: ActivationScope, activating_type: Type) -> BBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is A
         return B()
 
@@ -1570,7 +1571,7 @@ def test_factories_activating_singleton_type_consistency(method_name):
     method(bbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1608,8 +1609,8 @@ def test_factories_type_transient_consistency_nested(method_name):
             pass
 
     @inject()
-    def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
-        assert isinstance(context, GetServiceContext)
+    def cbase_factory(context: ActivationScope, activating_type: Type) -> CBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is B
         return C()
 
@@ -1620,7 +1621,7 @@ def test_factories_type_transient_consistency_nested(method_name):
     method(cbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1659,8 +1660,8 @@ def test_factories_type_scoped_consistency_nested(method_name):
             pass
 
     @inject()
-    def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
-        assert isinstance(context, GetServiceContext)
+    def cbase_factory(context: ActivationScope, activating_type: Type) -> CBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is B
         return C()
 
@@ -1671,7 +1672,7 @@ def test_factories_type_scoped_consistency_nested(method_name):
     method(cbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1710,8 +1711,8 @@ def test_factories_type_singleton_consistency_nested(method_name):
             pass
 
     @inject()
-    def cbase_factory(context: GetServiceContext, activating_type: Type) -> CBase:
-        assert isinstance(context, GetServiceContext)
+    def cbase_factory(context: ActivationScope, activating_type: Type) -> CBase:
+        assert isinstance(context, ActivationScope)
         assert activating_type is B
         return C()
 
@@ -1722,7 +1723,7 @@ def test_factories_type_singleton_consistency_nested(method_name):
     method(cbase_factory)
 
     provider = container.build_provider()
-    context = GetServiceContext(provider)
+    context = ActivationScope(provider)
 
     a = provider.get(ABase, context)
     assert isinstance(a, A)
@@ -1769,7 +1770,7 @@ def test_annotation_resolution_scoped():
 
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         instance = provider.get(A, context)
 
         assert isinstance(instance, A)
@@ -1808,7 +1809,7 @@ def test_annotation_nested_resolution_1():
 
     provider = container.build_provider()
 
-    with GetServiceContext(provider) as context:
+    with ActivationScope(provider) as context:
         instance = provider.get(A, context)
 
         assert isinstance(instance, A)
@@ -1854,7 +1855,7 @@ def test_annotation_nested_resolution_2():
 
     provider = container.build_provider()
 
-    with GetServiceContext(provider) as context:
+    with ActivationScope(provider) as context:
         instance = provider.get(A, context)
 
         assert isinstance(instance, A)
@@ -1915,7 +1916,7 @@ def test_annotation_resolution_transient():
 
     provider = container.build_provider()
 
-    with GetServiceContext() as context:
+    with ActivationScope() as context:
         instance = provider.get(A, context)
 
         assert isinstance(instance, A)
@@ -2303,3 +2304,63 @@ def test_deps_github_scenario():
         cla_handler.comments_service.auth_handler
         is cla_handler.checks_service.auth_handler
     )
+
+
+def test_container_protocol():
+    container: ContainerProtocol = arrange_cats_example()
+
+    class UsingAlias:
+        def __init__(self, example):
+            self.cats_controller = example
+
+    container.register(UsingAlias)
+
+    # arrange an exact alias for UsingAlias class init parameter:
+    container.set_alias("example", CatsController)
+
+    u = container.resolve(UsingAlias)
+
+    assert isinstance(u, UsingAlias)
+    assert isinstance(u.cats_controller, CatsController)
+    assert isinstance(u.cats_controller.cat_request_handler, GetCatRequestHandler)
+
+
+def test_container_protocol_register():
+    container: ContainerProtocol = Container()
+
+    class BaseA:
+        pass
+
+    class A(BaseA):
+        pass
+
+    container.register(BaseA, A)
+    a = container.resolve(BaseA)
+
+    assert isinstance(a, A)
+
+
+def test_container_protocol_any_argument():
+    container: ContainerProtocol = Container()
+
+    class A:
+        pass
+
+    container.register(A, None, None, 1, noop="foo")
+    a = container.resolve(A, None, None, 1, noop="foo")
+
+    assert isinstance(a, A)
+
+
+def test_container_register_instance():
+    container: ContainerProtocol = Container()
+
+    singleton = FooDBCatsRepository(FooDBContext(ServiceSettings("example")))
+
+    container.register(ICatsRepository, instance=singleton)
+
+    assert container.resolve(ICatsRepository) is singleton
+
+
+def test_import_version():
+    from rodi.__about__ import __version__

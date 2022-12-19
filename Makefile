@@ -25,8 +25,8 @@ test:
 	flake8 && pytest
 
 
-testcov:
-	pytest --cov-report html --cov-report annotate --cov=rodi tests/
+test-cov:
+	pytest --cov-report html --cov=rodi tests/
 
 
 format:
