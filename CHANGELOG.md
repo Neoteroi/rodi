@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.0.0] - ??? :star:
-- Introduces a "ContainerProtocol" to improve interoperability between
+- Introduces a `ContainerProtocol` to improve interoperability between
   libraries and alternative implementations of DI containers. The protocol is
-  inspired by [https://github.com/bobthemighty/punq](punq), since its interface
+  inspired by [punq](https://github.com/bobthemighty/punq), since its code API
   is the most user-friendly and intelligible of those that were reviewed.
+  The `ContainerProtocol` can be used through [composition](https://en.wikipedia.org/wiki/Composition_over_inheritance)
+  to replace `rodi` with alternative implementations of dependency injection in
+  those libraries that use `DI`.
 - Simplifies the code API of the library to support using the `Container` class
   to `register` and `resolve` services. The class `Services` is still used and
   available, but it's no more necessary to use it directly.

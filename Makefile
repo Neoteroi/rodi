@@ -10,7 +10,11 @@ clean:
 
 
 prepforbuild:
-	pip install --upgrade twine setuptools wheel
+	pip install build
+
+
+build:
+	python -m build
 
 
 test-release:

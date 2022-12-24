@@ -250,6 +250,24 @@ class ActivationScope:
             self.scoped_services = None
 
 
+def set_scope(obj, scope: ActivationScope) -> None:
+    obj._di_scope = scope
+
+
+def get_scope(obj) -> Optional[ActivationScope]:
+    try:
+        return obj._di_scope
+    except AttributeError:
+        return None
+
+
+def unset_scope(obj) -> None:
+    try:
+        del obj._di_scope
+    except AttributeError:
+        pass
+
+
 class ResolutionContext:
     __slots__ = ("resolved", "dynamic_chain")
     __deletable__ = ("resolved",)
@@ -639,7 +657,7 @@ class Services:
         self._executors = {}
 
     def __contains__(self, item):
-        return item in self._map
+        return item in self._map.items()
 
     def __getitem__(self, item):
         return self.get(item)
@@ -805,6 +823,9 @@ class Container(ContainerProtocol):
             self._provider = self.build_provider()
         return self._provider
 
+    def __iter__(self):
+        yield from self._map.items()
+
     def __contains__(self, key):
         return key in self._map
 
@@ -846,11 +867,17 @@ class Container(ContainerProtocol):
             self.add_transient(obj_type, sub_type)
         return self
 
-    def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> T:
+    def resolve(
+        self,
+        obj_type: Union[Type[T], str],
+        scope: Any = None,
+        *args,
+        **kwargs,
+    ) -> T:
         """
         Resolves a service by type, obtaining an instance of that type.
         """
-        return self.provider.get(obj_type)
+        return self.provider.get(obj_type, context=scope)
 
     def add_alias(self, name: str, desired_type: Type):
         """
@@ -909,6 +936,9 @@ class Container(ContainerProtocol):
         if key in self._map:
             raise OverridingServiceException(key, value)
         self._map[key] = value
+
+        if self._provider is not None:
+            self._provider = None
 
         key_name = class_name(key)
 
@@ -971,7 +1001,7 @@ class Container(ContainerProtocol):
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SCOPED)
 
     def add_transient(
-        self, base_type: Type, concrete_type: Optional[Type] = None, **kwargs
+        self, base_type: Type, concrete_type: Optional[Type] = None
     ) -> "Container":
         """
         Registers a type by base type, to be instantiated with transient lifetime.
@@ -985,9 +1015,7 @@ class Container(ContainerProtocol):
         if concrete_type is None:
             return self.add_exact_transient(base_type)
 
-        return self.bind_types(
-            base_type, concrete_type, ServiceLifeStyle.TRANSIENT, **kwargs
-        )
+        return self.bind_types(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
 
     def add_exact_singleton(self, concrete_type: Type) -> "Container":
         """

@@ -23,6 +23,22 @@ classifiers = [
 ]
 keywords = ["dependency", "injection", "type", "hints", "typing"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/docs",
+  "/examples",
+  "/deps",
+  "/styles",
+  "/tests",
+  "mkdocs-plugins.code-workspace",
+  "Makefile",
+  "CODE_OF_CONDUCT.md",
+  ".isort.cfg",
+  ".gitignore",
+  ".flake8"
+]
+
 [tool.hatch.version]
 path = "rodi/__about__.py"
 
