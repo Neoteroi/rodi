@@ -22,7 +22,7 @@ Dependency injection in ASP.NET
 Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.1),
 [Using dependency injection in a .Net Core console
 application](https://andrewlock.net/using-dependency-injection-in-a-net-core-console-application/)_).
-The `ContainerProtocol` and for v2 is inspired by [punq](https://github.com/bobthemighty/punq).
+The `ContainerProtocol` for v2 is inspired by [punq](https://github.com/bobthemighty/punq).
 
 ## Installation
 
@@ -60,6 +60,8 @@ activating services.
   in `rodi`, for scenarios where it's not desirable to consider alternative
   implementations of dependency injection.
 
+For this reason, the examples report two ways to achieve certain things.
+
 ### Recommended practices
 
 All services should be configured once, when an application starts, and the
@@ -71,8 +73,6 @@ Aim at keeping the `Container` and service graphs abstracted from the front-end
 layer of your application, and avoid mixing runtime values with container
 configuration. Example: if you build a web application, avoid if possible
 relying on the HTTP Request object being a service registered in your container.
-
-If
 
 ## Service life style:
 
