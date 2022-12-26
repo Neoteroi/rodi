@@ -34,7 +34,7 @@ pip install neoteroi-di
 [`rodi`](https://pypi.org/project/rodi/). It is currently `alpha` and
 potentially still subject to change.
 
-## Performant
+## Efficient
 
 `neoteroi-di` works by inspecting code **once** at runtime, to generate
 functions that return instances of desired types - as long as the object graph
@@ -69,9 +69,10 @@ For examples, refer to the [examples folder](./examples).
 ### Recommended practices
 
 All services should be configured once, when an application starts, and the
-object graph should be resolved only once. Example: if you build a web
-application, configure the object graph when bootstrapping the application,
-avoid altering the `Container` configuration while handling web requests.
+object graph should **not** be altered during normal program execution.
+Example: if you build a web application, configure the object graph when
+bootstrapping the application, avoid altering the `Container` configuration
+while handling web requests.
 
 Aim at keeping the `Container` and service graphs abstracted from the front-end
 layer of your application, and avoid mixing runtime values with container
