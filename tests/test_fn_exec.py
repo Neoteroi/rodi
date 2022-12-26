@@ -3,7 +3,7 @@ exec functions are designed to enable executing any function injecting parameter
 """
 import pytest
 
-from rodi import Container, inject
+from neoteroi.di import Container, inject
 
 
 class Example:

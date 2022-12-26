@@ -16,7 +16,8 @@ from typing import (
 import pytest
 from pytest import raises
 
-from rodi import (
+from neoteroi.di import (
+    ActivationScope,
     AliasAlreadyDefined,
     AliasConfigurationError,
     CannotResolveParameterException,
@@ -25,7 +26,6 @@ from rodi import (
     Container,
     ContainerProtocol,
     FactoryMissingContextException,
-    ActivationScope,
     InstanceResolver,
     InvalidFactory,
     InvalidOperationInStrictMode,
@@ -105,10 +105,10 @@ def arrange_cats_example():
     container = Container()
     container.add_transient(ICatsRepository, FooDBCatsRepository)
     container.add_scoped(IRequestContext, RequestContext)
-    container.add_exact_transient(GetCatRequestHandler)
-    container.add_exact_transient(CatsController)
+    container._add_exact_transient(GetCatRequestHandler)
+    container._add_exact_transient(CatsController)
     container.add_instance(ServiceSettings("foodb:example;something;"))
-    container.add_exact_transient(FooDBContext)
+    container._add_exact_transient(FooDBContext)
     return container
 
 
@@ -157,7 +157,7 @@ def test_transient_by_type_with_parameters():
 
     # NB:
     container.add_instance(ServiceSettings("foodb:example;something;"))
-    container.add_exact_transient(FooDBContext)
+    container._add_exact_transient(FooDBContext)
     provider = container.build_provider()
 
     cats_repo = provider.get(ICatsRepository)
@@ -227,8 +227,8 @@ def test_raises_for_circular_dependency_class_annotation():
 
 def test_raises_for_circular_dependency_with_dynamic_resolver():
     container = Container()
-    container.add_exact_transient(Jing)
-    container.add_exact_transient(Jang)
+    container._add_exact_transient(Jing)
+    container._add_exact_transient(Jang)
 
     with pytest.raises(CircularDependencyException):
         container.build_provider()
@@ -236,10 +236,10 @@ def test_raises_for_circular_dependency_with_dynamic_resolver():
 
 def test_raises_for_deep_circular_dependency_with_dynamic_resolver():
     container = Container()
-    container.add_exact_transient(W)
-    container.add_exact_transient(X)
-    container.add_exact_transient(Y)
-    container.add_exact_transient(Z)
+    container._add_exact_transient(W)
+    container._add_exact_transient(X)
+    container._add_exact_transient(Y)
+    container._add_exact_transient(Z)
 
     with pytest.raises(CircularDependencyException):
         container.build_provider()
@@ -247,9 +247,9 @@ def test_raises_for_deep_circular_dependency_with_dynamic_resolver():
 
 def test_does_not_raise_for_deep_circular_dependency_with_one_factory():
     container = Container()
-    container.add_exact_transient(W)
-    container.add_exact_transient(X)
-    container.add_exact_transient(Y)
+    container._add_exact_transient(W)
+    container._add_exact_transient(X)
+    container._add_exact_transient(Y)
 
     def z_factory(_) -> Z:
         return Z(None)
@@ -272,7 +272,7 @@ def test_circular_dependency_is_supported_by_factory():
         return Jang(None)
 
     container = Container()
-    container.add_exact_transient(Jing)
+    container._add_exact_transient(Jing)
     container.add_transient_by_factory(get_jang)
 
     provider = container.build_provider()
@@ -288,7 +288,7 @@ def test_add_instance_allows_for_circular_classes():
     container.add_instance(Circle(Circle(None)))
 
     # NB: in this example, Shape requires a Circle
-    container.add_exact_transient(Shape)
+    container._add_exact_transient(Shape)
     provider = container.build_provider()
 
     circle = provider.get(Circle)
@@ -311,8 +311,8 @@ def test_add_instance_with_declared_type():
 
 def test_raises_for_optional_parameter():
     container = Container()
-    container.add_exact_transient(Foo)
-    container.add_exact_transient(TypeWithOptional)
+    container._add_exact_transient(Foo)
+    container._add_exact_transient(TypeWithOptional)
 
     with pytest.raises(UnsupportedUnionTypeException) as context:
         container.build_provider()
@@ -323,7 +323,7 @@ def test_raises_for_optional_parameter():
 def test_raises_for_nested_circular_dependency():
     container = Container()
     container.add_transient(ICircle, Circle)
-    container.add_exact_transient(TrickyCircle)
+    container._add_exact_transient(TrickyCircle)
 
     with pytest.raises(CircularDependencyException) as context:
         container.build_provider()
@@ -333,10 +333,10 @@ def test_raises_for_nested_circular_dependency():
 
 def test_interdependencies():
     container = Container()
-    container.add_exact_transient(A)
-    container.add_exact_transient(B)
-    container.add_exact_transient(C)
-    container.add_exact_transient(IdGetter)
+    container._add_exact_transient(A)
+    container._add_exact_transient(B)
+    container._add_exact_transient(C)
+    container._add_exact_transient(IdGetter)
     provider = container.build_provider()
 
     c = provider.get(C)
@@ -361,7 +361,7 @@ def test_transient_service():
 
 def test_singleton_services():
     container = Container()
-    container.add_exact_singleton(IdGetter)
+    container._add_exact_singleton(IdGetter)
     provider = container.build_provider()
 
     with ActivationScope() as context:
@@ -400,10 +400,10 @@ def test_scoped_services_context_used_more_than_once():
             self.b1 = b1
             self.b2 = b2
 
-    container.add_exact_scoped(C)
-    container.add_exact_transient(B1)
-    container.add_exact_transient(B2)
-    container.add_exact_transient(A)
+    container._add_exact_scoped(C)
+    container._add_exact_transient(B1)
+    container._add_exact_transient(B2)
+    container._add_exact_transient(A)
 
     provider = container.build_provider()
 
@@ -440,7 +440,7 @@ def test_scoped_services_context_used_more_than_once_manual_dispose():
 
 def test_transient_services():
     container = Container()
-    container.add_exact_transient(IdGetter)
+    container._add_exact_transient(IdGetter)
     provider = container.build_provider()
 
     with ActivationScope() as context:
@@ -459,7 +459,7 @@ def test_transient_services():
 
 def test_scoped_services():
     container = Container()
-    container.add_exact_scoped(IdGetter)
+    container._add_exact_scoped(IdGetter)
     provider = container.build_provider()
 
     with ActivationScope() as context:
@@ -494,7 +494,7 @@ def test_scoped_services_with_shortcut():
 def test_resolution_by_parameter_name():
     container = Container()
     container.add_transient(ICatsRepository, InMemoryCatsRepository)
-    container.add_exact_transient(ResolveThisByParameterName)
+    container._add_exact_transient(ResolveThisByParameterName)
 
     provider = container.build_provider()
     resolved = provider.get(ResolveThisByParameterName)
@@ -523,7 +523,7 @@ def test_resolve_singleton_by_parameter_name():
 
 def test_service_collection_contains():
     container = Container()
-    container.add_exact_transient(Foo)
+    container._add_exact_transient(Foo)
 
     assert Foo in container
     assert Cat not in container
@@ -572,8 +572,8 @@ def test_additional_alias():
             self.cats_controller = cats_controller
             self.settings = service_settings
 
-    container.add_exact_transient(UsingAlias)
-    container.add_exact_transient(AnotherUsingAlias)
+    container._add_exact_transient(UsingAlias)
+    container._add_exact_transient(AnotherUsingAlias)
 
     # arrange an exact alias for UsingAlias class init parameter:
     container.add_alias("example", CatsController)
@@ -783,8 +783,8 @@ def test_add_singleton_by_factory_raises_for_missing_type(method_name):
 
 def test_singleton_by_provider():
     container = Container()
-    container.add_exact_singleton(P)
-    container.add_exact_transient(R)
+    container._add_exact_singleton(P)
+    container._add_exact_transient(R)
 
     provider = container.build_provider()
 
@@ -813,8 +813,8 @@ def test_singleton_by_provider_with_shortcut():
 
 def test_singleton_by_provider_both_singletons():
     container = Container()
-    container.add_exact_singleton(P)
-    container.add_exact_singleton(R)
+    container._add_exact_singleton(P)
+    container._add_exact_singleton(R)
 
     provider = container.build_provider()
 
@@ -831,12 +831,12 @@ def test_singleton_by_provider_both_singletons():
 
 def test_type_hints_precedence():
     container = Container()
-    container.add_exact_transient(PrecedenceOfTypeHintsOverNames)
-    container.add_exact_transient(Foo)
-    container.add_exact_transient(Q)
-    container.add_exact_transient(P)
-    container.add_exact_transient(Ko)
-    container.add_exact_transient(Ok)
+    container._add_exact_transient(PrecedenceOfTypeHintsOverNames)
+    container._add_exact_transient(Foo)
+    container._add_exact_transient(Q)
+    container._add_exact_transient(P)
+    container._add_exact_transient(Ko)
+    container._add_exact_transient(Ok)
 
     provider = container.build_provider()
 
@@ -867,11 +867,11 @@ def test_type_hints_precedence_with_shortcuts():
 
 def test_proper_handling_of_inheritance():
     container = Container()
-    container.add_exact_transient(UfoOne)
-    container.add_exact_transient(UfoTwo)
-    container.add_exact_transient(UfoThree)
-    container.add_exact_transient(UfoFour)
-    container.add_exact_transient(Foo)
+    container._add_exact_transient(UfoOne)
+    container._add_exact_transient(UfoTwo)
+    container._add_exact_transient(UfoThree)
+    container._add_exact_transient(UfoFour)
+    container._add_exact_transient(Foo)
 
     provider = container.build_provider()
 
@@ -957,7 +957,7 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
             self.logger = logger
 
     container = Container()
-    container.add_exact_transient(Foo)
+    container._add_exact_transient(Foo)
 
     @inject()
     def factory(_, activating_type) -> Logger:
@@ -966,9 +966,9 @@ def test_factory_can_receive_activating_type_as_parameter(method_name):
     method = getattr(container, method_name)
     method(factory)
 
-    container.add_exact_transient(HelpController).add_exact_transient(
+    container._add_exact_transient(HelpController)._add_exact_transient(
         HomeController
-    ).add_exact_transient(FooController)
+    )._add_exact_transient(FooController)
 
     provider = container.build_provider()
 
@@ -1024,7 +1024,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution():
     container.add_transient_by_factory(factory)
 
     for service_type in {HelpRepo, HelpHandler, HelpController}:
-        container.add_exact_transient(service_type)
+        container._add_exact_transient(service_type)
 
     provider = container.build_provider()
 
@@ -1092,7 +1092,7 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
         Foo,
         FooDBContext,
     }:
-        container.add_exact_transient(service_type)
+        container._add_exact_transient(service_type)
 
     provider = container.build_provider()
 
@@ -1188,7 +1188,7 @@ def test_container_handles_class_without_init():
     class WithoutInit:
         pass
 
-    container.add_exact_singleton(WithoutInit)
+    container._add_exact_singleton(WithoutInit)
     provider = container.build_provider()
 
     instance = provider.get(WithoutInit)
@@ -1295,7 +1295,7 @@ def test_add_alias_requires_configured_type():
 def test_build_provider_raises_for_missing_transient_parameter():
     container = Container()
 
-    container.add_exact_transient(CatsController)
+    container._add_exact_transient(CatsController)
 
     with raises(CannotResolveParameterException):
         container.build_provider()
@@ -1304,7 +1304,7 @@ def test_build_provider_raises_for_missing_transient_parameter():
 def test_build_provider_raises_for_missing_scoped_parameter():
     container = Container()
 
-    container.add_exact_scoped(CatsController)
+    container._add_exact_scoped(CatsController)
 
     with raises(CannotResolveParameterException):
         container.build_provider()
@@ -1313,7 +1313,7 @@ def test_build_provider_raises_for_missing_scoped_parameter():
 def test_build_provider_raises_for_missing_singleton_parameter():
     container = Container()
 
-    container.add_exact_singleton(CatsController)
+    container._add_exact_singleton(CatsController)
 
     with raises(CannotResolveParameterException):
         container.build_provider()
@@ -1334,9 +1334,9 @@ def test_overriding_alias_from_class_name_throws():
         def __init__(self):
             pass
 
-    container.add_exact_transient(A)
-    container.add_exact_transient(B)
-    container.add_exact_transient(C)
+    container._add_exact_transient(A)
+    container._add_exact_transient(B)
+    container._add_exact_transient(C)
 
     with raises(AliasAlreadyDefined):
         container.add_alias("b", C)  # <-- ambiguity
@@ -1353,8 +1353,8 @@ def test_cannot_resolve_parameter_in_strict_mode_throws():
         def __init__(self, c):
             self.c = c
 
-    container.add_exact_transient(A)
-    container.add_exact_transient(B)
+    container._add_exact_transient(A)
+    container._add_exact_transient(B)
 
     with raises(CannotResolveParameterException):
         container.build_provider()
@@ -1384,9 +1384,9 @@ def test_scoped_services_exact():
         def __init__(self):
             pass
 
-    container.add_exact_scoped(A)
-    container.add_exact_scoped(B)
-    container.add_exact_scoped(C)
+    container._add_exact_scoped(A)
+    container._add_exact_scoped(B)
+    container._add_exact_scoped(C)
 
     provider = container.build_provider()
     context = ActivationScope(provider)
@@ -1743,7 +1743,7 @@ def test_annotation_resolution():
 
     b_singleton = B()
     container.add_instance(b_singleton)
-    container.add_exact_scoped(A)
+    container._add_exact_scoped(A)
 
     provider = container.build_provider()
 
@@ -1766,7 +1766,7 @@ def test_annotation_resolution_scoped():
 
     b_singleton = B()
     container.add_instance(b_singleton)
-    container.add_exact_scoped(A)
+    container._add_exact_scoped(A)
 
     provider = container.build_provider()
 
@@ -1804,8 +1804,8 @@ def test_annotation_nested_resolution_1():
 
     container.add_instance(C())
     container.add_instance(D())
-    container.add_exact_transient(B)
-    container.add_exact_scoped(A)
+    container._add_exact_transient(B)
+    container._add_exact_scoped(A)
 
     provider = container.build_provider()
 
@@ -1848,10 +1848,10 @@ def test_annotation_nested_resolution_2():
     container = Container()
 
     container.add_scoped_by_factory(E, E)
-    container.add_exact_scoped(C)
-    container.add_exact_scoped(D)
-    container.add_exact_transient(B)
-    container.add_exact_scoped(A)
+    container._add_exact_scoped(C)
+    container._add_exact_scoped(D)
+    container._add_exact_transient(B)
+    container._add_exact_scoped(A)
 
     provider = container.build_provider()
 
@@ -1886,7 +1886,7 @@ def test_annotation_resolution_singleton():
 
     b_singleton = B()
     container.add_instance(b_singleton)
-    container.add_exact_singleton(A)
+    container._add_exact_singleton(A)
 
     provider = container.build_provider()
 
@@ -1945,7 +1945,7 @@ def test_annotations_abstract_type_transient_service():
 
     container = Container()
     container.add_transient(ICatsRepository, FooCatsRepository)
-    container.add_exact_transient(GetCatRequestHandler)
+    container._add_exact_transient(GetCatRequestHandler)
     provider = container.build_provider()
 
     cats_repo = provider.get(ICatsRepository)
@@ -1974,7 +1974,7 @@ def test_support_for_dataclasses():
 
     container = Container()
     container.add_instance(Settings(region="Western Europe"))
-    container.add_exact_scoped(GetInfoHandler)
+    container._add_exact_scoped(GetInfoHandler)
 
     provider = container.build_provider()
 
@@ -1992,7 +1992,7 @@ def test_list():
 
     container.add_instance(["one", "two", "three"])
 
-    container.add_exact_scoped(Foo)
+    container._add_exact_scoped(Foo)
 
     provider = container.build_provider()
 
@@ -2178,7 +2178,7 @@ def test_iterables_annotations_singleton(annotation, value):
 
     container.add_instance(value, declared_class=annotation)
 
-    container.add_exact_scoped(Foo)
+    container._add_exact_scoped(Foo)
 
     provider = container.build_provider()
 
@@ -2363,4 +2363,4 @@ def test_container_register_instance():
 
 
 def test_import_version():
-    from rodi.__about__ import __version__  # noqa
+    from neoteroi.di.__about__ import __version__  # noqa

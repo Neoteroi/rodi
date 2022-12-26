@@ -242,6 +242,7 @@ class ActivationScope:
         self.dispose()
 
     def dispose(self):
+        # TODO: dispose per gli oggetti che vengono attivati
         if self.provider:
             self.provider = None
 
@@ -343,6 +344,19 @@ class FactoryTypeProvider:
     def __call__(self, context: ActivationScope, parent_type):
         assert isinstance(context, ActivationScope)
         return self.factory(context, parent_type)
+
+
+class _DisposingTypeProvider:
+    __slots__ = ("_provider", "instance")
+
+    def __init__(self, sub_provider: TypeProvider):
+        self._provider = sub_provider
+        self.instance = None
+
+    def __call__(self, context: ActivationScope, parent_type):
+        with self._provider(context, parent_type) as service:
+            self.instance = self._provider(context, parent_type)
+        return self.instance
 
 
 class SingletonFactoryTypeProvider:
@@ -690,7 +704,7 @@ class Services:
     def get(
         self,
         desired_type: Union[Type[T], str],
-        context: Optional[ActivationScope] = None,
+        scope: Optional[ActivationScope] = None,
         *,
         default: Optional[Any] = ...,
     ) -> T:
@@ -701,8 +715,8 @@ class Services:
         :param context: optional context, used to handle scoped services.
         :return: an instance of the desired type
         """
-        if context is None:
-            context = ActivationScope(self)
+        if scope is None:
+            scope = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
 
@@ -711,7 +725,7 @@ class Services:
                 return cast(T, default)
             raise CannotResolveTypeException(desired_type)
 
-        return cast(T, resolver(context, desired_type))
+        return cast(T, resolver(scope, desired_type))
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
@@ -862,7 +876,7 @@ class Container(ContainerProtocol):
             return self
 
         if sub_type is None:
-            self.add_exact_transient(obj_type)
+            self._add_exact_transient(obj_type)
         else:
             self.add_transient(obj_type, sub_type)
         return self
@@ -877,7 +891,16 @@ class Container(ContainerProtocol):
         """
         Resolves a service by type, obtaining an instance of that type.
         """
-        return self.provider.get(obj_type, context=scope)
+        return self.provider.get(obj_type, scope=scope)
+
+    def __enter__(self) -> "Container":
+        # Configura uno scope di default
+        self._default_scope = ActivationScope()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # TODO: dispose dello scopo
+        ...
 
     def add_alias(self, name: str, desired_type: Type):
         """
@@ -979,7 +1002,7 @@ class Container(ContainerProtocol):
         :return: the service collection itself
         """
         if concrete_type is None:
-            return self.add_exact_singleton(base_type)
+            return self._add_exact_singleton(base_type)
 
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SINGLETON)
 
@@ -996,7 +1019,7 @@ class Container(ContainerProtocol):
         :return: the service collection itself
         """
         if concrete_type is None:
-            return self.add_exact_scoped(base_type)
+            return self._add_exact_scoped(base_type)
 
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SCOPED)
 
@@ -1013,11 +1036,11 @@ class Container(ContainerProtocol):
         :return: the service collection itself
         """
         if concrete_type is None:
-            return self.add_exact_transient(base_type)
+            return self._add_exact_transient(base_type)
 
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
 
-    def add_exact_singleton(self, concrete_type: Type) -> "Container":
+    def _add_exact_singleton(self, concrete_type: Type) -> "Container":
         """
         Registers an exact type, to be instantiated with singleton lifetime.
 
@@ -1031,7 +1054,7 @@ class Container(ContainerProtocol):
         )
         return self
 
-    def add_exact_scoped(self, concrete_type: Type) -> "Container":
+    def _add_exact_scoped(self, concrete_type: Type) -> "Container":
         """
         Registers an exact type, to be instantiated with scoped lifetime.
 
@@ -1044,7 +1067,7 @@ class Container(ContainerProtocol):
         )
         return self
 
-    def add_exact_transient(self, concrete_type: Type) -> "Container":
+    def _add_exact_transient(self, concrete_type: Type) -> "Container":
         """
         Registers an exact type, to be instantiated with transient lifetime.
 
