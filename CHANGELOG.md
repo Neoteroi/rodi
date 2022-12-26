@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaces `setup.py` with `pyproject.toml`.
 - Renames context classes: "GetServiceContext" to "ActivationScope",
   "ResolveContext" to "ResolutionContext".
+- The "add_exact*" methods have been made private, to simplify the public API.
 
 ## [1.1.3] - 2022-03-27 :droplet:
 - Corrects a bug that would cause false positives when raising exceptions
