@@ -62,6 +62,10 @@ activating services.
 
 For this reason, the examples report two ways to achieve certain things.
 
+### Examples
+
+For examples, refer to the [examples folder](./examples).
+
 ### Recommended practices
 
 All services should be configured once, when an application starts, and the
