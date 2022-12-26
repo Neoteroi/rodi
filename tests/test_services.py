@@ -531,7 +531,7 @@ def test_service_collection_contains():
 
 def test_service_provider_contains():
     container = Container()
-    container.add_exact_transient(IdGetter)
+    container.add_transient(IdGetter)
 
     provider = container.build_provider()
 
@@ -2363,4 +2363,4 @@ def test_container_register_instance():
 
 
 def test_import_version():
-    from rodi.__about__ import __version__
+    from rodi.__about__ import __version__  # noqa

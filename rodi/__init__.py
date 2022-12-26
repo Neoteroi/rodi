@@ -657,7 +657,7 @@ class Services:
         self._executors = {}
 
     def __contains__(self, item):
-        return item in self._map.items()
+        return item in self._map
 
     def __getitem__(self, item):
         return self.get(item)

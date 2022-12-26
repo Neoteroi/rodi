@@ -29,7 +29,7 @@ exclude = [
   "/docs",
   "/examples",
   "/deps",
-  "/styles",
+  "/htmlcov",
   "/tests",
   "mkdocs-plugins.code-workspace",
   "Makefile",
