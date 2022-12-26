@@ -69,7 +69,7 @@ For examples, refer to the [examples folder](./examples).
 ### Recommended practices
 
 All services should be configured once, when an application starts, and the
-object graph should **not** be altered during normal program execution.
+object graph should *not* be altered during normal program execution.
 Example: if you build a web application, configure the object graph when
 bootstrapping the application, avoid altering the `Container` configuration
 while handling web requests.
