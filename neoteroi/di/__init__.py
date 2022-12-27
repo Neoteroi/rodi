@@ -20,7 +20,6 @@ from typing import (
     get_type_hints,
 )
 
-
 T = TypeVar("T")
 
 
@@ -343,19 +342,6 @@ class FactoryTypeProvider:
     def __call__(self, context: ActivationScope, parent_type):
         assert isinstance(context, ActivationScope)
         return self.factory(context, parent_type)
-
-
-class _DisposingTypeProvider:
-    __slots__ = ("_provider", "instance")
-
-    def __init__(self, sub_provider: TypeProvider):
-        self._provider = sub_provider
-        self.instance = None
-
-    def __call__(self, context: ActivationScope, parent_type):
-        with self._provider(context, parent_type) as service:
-            self.instance = self._provider(context, parent_type)
-        return self.instance
 
 
 class SingletonFactoryTypeProvider:
