@@ -31,8 +31,8 @@ pip install neoteroi-di
 ```
 
 `neoteroi-di` is the new version of the library that was previously named
-[`rodi`](https://pypi.org/project/rodi/). It is currently `alpha` and
-potentially still subject to change.
+[`rodi`](https://pypi.org/project/rodi/). It is currently `alpha` and still
+subject to change.
 
 ## Efficient
 
