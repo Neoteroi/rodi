@@ -242,7 +242,6 @@ class ActivationScope:
         self.dispose()
 
     def dispose(self):
-        # TODO: dispose per gli oggetti che vengono attivati
         if self.provider:
             self.provider = None
 
@@ -892,15 +891,6 @@ class Container(ContainerProtocol):
         Resolves a service by type, obtaining an instance of that type.
         """
         return self.provider.get(obj_type, scope=scope)
-
-    def __enter__(self) -> "Container":
-        # Configura uno scope di default
-        self._default_scope = ActivationScope()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        # TODO: dispose dello scopo
-        ...
 
     def add_alias(self, name: str, desired_type: Type):
         """

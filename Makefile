@@ -38,3 +38,7 @@ format:
 	isort tests
 	black rodi
 	black tests
+
+
+lint-types:
+	mypy neoteroi --explicit-package-bases
