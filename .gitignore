@@ -10,3 +10,5 @@ build
 dist
 deps
 *.py,cover
+junit
+coverage.xml
