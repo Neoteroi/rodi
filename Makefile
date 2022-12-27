@@ -10,7 +10,11 @@ clean:
 
 
 prepforbuild:
-	pip install --upgrade twine setuptools wheel
+	pip install build
+
+
+build:
+	python -m build
 
 
 test-release:
@@ -25,8 +29,8 @@ test:
 	flake8 && pytest
 
 
-testcov:
-	pytest --cov-report html --cov-report annotate --cov=rodi tests/
+test-cov:
+	pytest --cov-report html --cov=neoteroi tests/
 
 
 format:
@@ -34,3 +38,7 @@ format:
 	isort tests
 	black rodi
 	black tests
+
+
+lint-types:
+	mypy neoteroi --explicit-package-bases

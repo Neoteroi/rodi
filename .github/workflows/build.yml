@@ -15,7 +15,7 @@ on:
       - "*"
 
 env:
-  PROJECT_NAME: rodi
+  PROJECT_NAME: neoteroi
 
 jobs:
   build:
@@ -52,7 +52,12 @@ jobs:
 
       - name: Run tests
         run: |
+          pip install -e .
           pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
+
+      - name: Test examples
+        run: |
+          for f in ./examples/*.py; do echo "Processing $f file..." && python $f; done
 
       - name: Run linters
         run: |
@@ -102,15 +107,26 @@ jobs:
         with:
           name: dist
           path: dist
+
+      - name: Use Python 3.11
+        uses: actions/setup-python@v1
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install twine
+
       - name: Publish distribution 📦 to Test PyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          skip_existing: true
-          user: __token__
-          password: ${{ secrets.test_pypi_password }}
-          repository_url: https://test.pypi.org/legacy/
+        run: |
+          twine upload -r testpypi dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.test_pypi_password2 }}
+
       - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@master
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_password }}
+        run: |
+          twine upload -r pypi dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi_password2 }}

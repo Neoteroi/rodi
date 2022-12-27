@@ -3,19 +3,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "rodi"
+name = "neoteroi-di"
 dynamic = ["version"]
 authors = [
     { name = "Roberto Prevato", email = "roberto.prevato@gmail.com" },
 ]
 description = "Implementation of dependency injection for Python 3"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -24,8 +23,24 @@ classifiers = [
 ]
 keywords = ["dependency", "injection", "type", "hints", "typing"]
 
+[tool.hatch.build.targets.sdist]
+exclude = [
+  "/.github",
+  "/docs",
+  "/examples",
+  "/deps",
+  "/htmlcov",
+  "/tests",
+  "mkdocs-plugins.code-workspace",
+  "Makefile",
+  "CODE_OF_CONDUCT.md",
+  ".isort.cfg",
+  ".gitignore",
+  ".flake8"
+]
+
 [tool.hatch.version]
-path = "rodi/__about__.py"
+path = "neoteroi/di/__about__.py"
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/rodi"

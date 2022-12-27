@@ -1,9 +1,10 @@
-"""Functions exec tests.
+"""
+Functions exec tests.
 exec functions are designed to enable executing any function injecting parameters.
 """
 import pytest
 
-from rodi import Container, inject
+from neoteroi.di import Container, inject
 
 
 class Example:

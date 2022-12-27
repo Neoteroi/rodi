@@ -8,4 +8,5 @@ __pycache__
 .mypy_cache
 build
 dist
+deps
 *.py,cover
