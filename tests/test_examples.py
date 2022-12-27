@@ -1,7 +1,7 @@
 import glob
-import pytest
 import subprocess
 
+import pytest
 
 examples = [file for file in glob.glob("./examples/*.py")]
 
