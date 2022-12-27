@@ -249,24 +249,6 @@ class ActivationScope:
             self.scoped_services = None
 
 
-def set_scope(obj, scope: ActivationScope) -> None:
-    obj._di_scope = scope
-
-
-def get_scope(obj) -> Optional[ActivationScope]:
-    try:
-        return obj._di_scope
-    except AttributeError:
-        return None
-
-
-def unset_scope(obj) -> None:
-    try:
-        del obj._di_scope
-    except AttributeError:
-        pass
-
-
 class ResolutionContext:
     __slots__ = ("resolved", "dynamic_chain")
     __deletable__ = ("resolved",)

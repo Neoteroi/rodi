@@ -30,7 +30,7 @@ test:
 
 
 test-cov:
-	pytest --cov-report html --cov=rodi tests/
+	pytest --cov-report html --cov=neoteroi tests/
 
 
 format:

@@ -25,6 +25,7 @@ from neoteroi.di import (
     CircularDependencyException,
     Container,
     ContainerProtocol,
+    DynamicResolver,
     FactoryMissingContextException,
     InstanceResolver,
     InvalidFactory,
@@ -2364,3 +2365,20 @@ def test_container_register_instance():
 
 def test_import_version():
     from neoteroi.di.__about__ import __version__  # noqa
+
+
+def test_container_iter():
+    container = Container()
+
+    class A:
+        pass
+
+    class B:
+        pass
+
+    container.register(A)
+    container.register(B)
+
+    for key, value in container:
+        assert key is A or key is B
+        assert isinstance(value, DynamicResolver)
