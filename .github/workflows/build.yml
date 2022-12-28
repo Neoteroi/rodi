@@ -55,10 +55,6 @@ jobs:
           pip install -e .
           pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
 
-      - name: Test examples
-        run: |
-          for f in ./examples/*.py; do echo "Processing $f file..." && python $f; done
-
       - name: Run linters
         run: |
           echo "Running linters - if build fails here, please be patient!"

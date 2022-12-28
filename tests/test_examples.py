@@ -1,12 +1,17 @@
 import glob
-import subprocess
+import importlib
+import sys
 
 import pytest
 
 examples = [file for file in glob.glob("./examples/*.py")]
 
 
+sys.path.append("./examples")
+
+
 @pytest.mark.parametrize("file_path", examples)
 def test_example(file_path: str):
-    output = subprocess.run(["python", file_path])
-    assert output.returncode == 0
+    module_name = file_path.replace("./examples/", "").replace(".py", "")
+    # assertions are in imported
+    importlib.import_module(module_name)
