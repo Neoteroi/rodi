@@ -26,7 +26,7 @@ release:
 
 
 test:
-	flake8 && pytest
+	pytest
 
 
 test-cov:
