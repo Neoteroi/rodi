@@ -11,7 +11,6 @@ from typing import (
     Dict,
     Mapping,
     Optional,
-    Protocol,
     Set,
     Type,
     TypeVar,
@@ -19,6 +18,12 @@ from typing import (
     cast,
     get_type_hints,
 )
+
+try:
+    from typing import Protocol
+except ImportError:  # pragma: no cover
+    from typing_extensions import Protocol
+
 
 T = TypeVar("T")
 
