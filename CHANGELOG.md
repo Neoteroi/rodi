@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renames context classes: "GetServiceContext" to "ActivationScope",
   "ResolveContext" to "ResolutionContext".
 - The "add_exact*" methods have been made private, to simplify the public API.
+- Improves type annotations; [MaximZayats](https://github.com/MaximZayats)' contribution.
 - Adds typehints to GetServiceContext init params; [guscardvs](https://github.com/guscardvs)' contribution.
 
 ## [1.1.3] - 2022-03-27 :droplet:
