@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "neoteroi-di"
+name = "rodi"
 dynamic = ["version"]
 authors = [
     { name = "Roberto Prevato", email = "roberto.prevato@gmail.com" },
@@ -42,12 +42,15 @@ exclude = [
   ".gitignore",
   ".flake8",
   "junit",
-  "neoteroi-di.code-workspace",
-  "requirements.txt"
+  "rodi.code-workspace",
+  "requirements.txt",
+  "mypy.ini",
+  "pytest.ini",
+  "examples-summary.py",
 ]
 
 [tool.hatch.version]
-path = "neoteroi/di/__about__.py"
+path = "rodi/__about__.py"
 
 [project.urls]
 "Homepage" = "https://github.com/Neoteroi/rodi"

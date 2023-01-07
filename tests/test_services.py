@@ -16,7 +16,7 @@ from typing import (
 import pytest
 from pytest import raises
 
-from neoteroi.di import (
+from rodi import (
     ActivationScope,
     AliasAlreadyDefined,
     AliasConfigurationError,
@@ -2364,7 +2364,7 @@ def test_container_register_instance():
 
 
 def test_import_version():
-    from neoteroi.di.__about__ import __version__  # noqa
+    from rodi.__about__ import __version__  # noqa
 
 
 def test_container_iter():

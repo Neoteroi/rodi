@@ -4,7 +4,7 @@ exec functions are designed to enable executing any function injecting parameter
 """
 import pytest
 
-from neoteroi.di import Container, inject
+from rodi import Container, inject
 
 
 class Example:

@@ -3,7 +3,7 @@ This example illustrates how to configure a singleton object.
 """
 from dataclasses import dataclass
 
-from neoteroi.di import Container
+from rodi import Container
 
 
 @dataclass

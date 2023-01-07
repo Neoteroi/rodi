@@ -6,7 +6,7 @@ Two services are registered as "transient" services, meaning that a new instance
 created whenever needed.
 """
 
-from neoteroi.di import Container
+from rodi import Container
 
 
 class A:

@@ -8,7 +8,7 @@ from exact implementations of data access logic).
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from neoteroi.di import Container
+from rodi import Container
 
 
 @dataclass

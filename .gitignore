@@ -1,5 +1,5 @@
 .vscode
-venv
+venv*
 htmlcov
 .coverage
 __pycache__
