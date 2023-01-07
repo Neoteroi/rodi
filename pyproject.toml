@@ -43,7 +43,10 @@ exclude = [
   ".flake8",
   "junit",
   "rodi.code-workspace",
-  "requirements.txt"
+  "requirements.txt",
+  "mypy.ini",
+  "pytest.ini",
+  "examples-summary.py",
 ]
 
 [tool.hatch.version]
