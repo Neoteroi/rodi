@@ -15,7 +15,7 @@ on:
       - "*"
 
 env:
-  PROJECT_NAME: neoteroi
+  PROJECT_NAME: rodi
 
 jobs:
   build:
@@ -118,11 +118,11 @@ jobs:
           twine upload -r testpypi dist/*
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.test_pypi_password2 }}
+          TWINE_PASSWORD: ${{ secrets.test_pypi_password }}
 
       - name: Publish distribution 📦 to PyPI
         run: |
           twine upload -r pypi dist/*
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.pypi_password2 }}
+          TWINE_PASSWORD: ${{ secrets.pypi_password }}

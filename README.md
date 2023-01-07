@@ -1,6 +1,6 @@
 ![Build](https://github.com/Neoteroi/rodi/workflows/Build/badge.svg)
-[![pypi](https://img.shields.io/pypi/v/neoteroi-di.svg)](https://pypi.python.org/pypi/neoteroi-di)
-[![versions](https://img.shields.io/pypi/pyversions/neoteroi-di.svg)](https://github.com/Neoteroi/neoteroi-di)
+[![pypi](https://img.shields.io/pypi/v/rodi.svg)](https://pypi.python.org/pypi/rodi)
+[![versions](https://img.shields.io/pypi/pyversions/rodi.svg)](https://github.com/Neoteroi/rodi)
 [![codecov](https://codecov.io/gh/Neoteroi/rodi/branch/main/graph/badge.svg?token=VzAnusWIZt)](https://codecov.io/gh/Neoteroi/rodi)
 [![license](https://img.shields.io/github/license/Neoteroi/rodi.svg)](https://github.com/Neoteroi/rodi/blob/main/LICENSE)
 
@@ -27,16 +27,12 @@ The `ContainerProtocol` for v2 is inspired by [punq](https://github.com/bobthemi
 ## Installation
 
 ```bash
-pip install neoteroi-di
+pip install rodi
 ```
-
-`neoteroi-di` is the new version of the library that was previously named
-[`rodi`](https://pypi.org/project/rodi/). It is currently `alpha` and still
-subject to change.
 
 ## Efficient
 
-`neoteroi-di` works by inspecting code **once** at runtime, to generate
+`rodi` works by inspecting code **once** at runtime, to generate
 functions that return instances of desired types - as long as the object graph
 is not altered. Inspections are done either on constructors
 (__&#95;&#95;init&#95;&#95;__) or class annotations. Validation steps, for
@@ -46,19 +42,18 @@ activating services.
 
 ## Flexible
 
-`neoteroi-di` offers two code APIs:
+`rodi` offers two code APIs:
 
 - one is kept as generic as possible, using a `ContainerProtocol` for scenarios
-  in which it is desirable being able to replace `neoteroi-di` with alternative
+  in which it is desirable being able to replace `rodi` with alternative
   implementations of dependency injection for Python. The protocol only expects
   a class being able to `register` and `resolve` types, and to tell if a type
   is configured in it (`__contains__`). Even if other implementations of DI
   don´t implement these three methods, it should be easy to use
   [composition](https://en.wikipedia.org/wiki/Composition_over_inheritance) to
   wrap other libraries with a compatible class.
-- one is a more concrete implementation, following the previous implementation
-  in `rodi`, for scenarios where it's not desirable to consider alternative
-  implementations of dependency injection.
+- one is a more concrete implementation, for scenarios where it's not desirable
+  to consider alternative implementations of dependency injection.
 
 For this reason, the examples report two ways to achieve certain things.
 
@@ -88,7 +83,7 @@ relying on the HTTP Request object being a service registered in your container.
 
 ## Usage in BlackSheep
 
-`neoteroi-di` is used in the second version of [BlackSheep](https://www.neoteroi.dev/blacksheep/)
+`rodi` is used in the [BlackSheep](https://www.neoteroi.dev/blacksheep/)
 web framework to implement [dependency injection](https://www.neoteroi.dev/blacksheep/dependency-injection/) for
 request handlers.
 

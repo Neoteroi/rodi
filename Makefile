@@ -30,7 +30,7 @@ test:
 
 
 test-cov:
-	pytest --cov-report html --cov=neoteroi tests/
+	pytest --cov-report html --cov=rodi tests/
 
 
 format:
@@ -41,4 +41,4 @@ format:
 
 
 lint-types:
-	mypy neoteroi --explicit-package-bases
+	mypy rodi --explicit-package-bases
