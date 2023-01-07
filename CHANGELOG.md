@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.0] - ??? :star:
+## [2.0.0] - 2023-01-07 :star:
 - Introduces a `ContainerProtocol` to improve interoperability between
   libraries and alternative implementations of DI containers. The protocol is
   inspired by [punq](https://github.com/bobthemighty/punq), since its code API
@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Renames context classes: "GetServiceContext" to "ActivationScope",
   "ResolveContext" to "ResolutionContext".
 - The "add_exact*" methods have been made private, to simplify the public API.
+- Adds typehints to GetServiceContext init params; [guscardvs](https://github.com/guscardvs)' contribution.
 
 ## [1.1.3] - 2022-03-27 :droplet:
 - Corrects a bug that would cause false positives when raising exceptions
