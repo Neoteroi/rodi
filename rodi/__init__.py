@@ -812,6 +812,9 @@ class Container(ContainerProtocol):
     def __iter__(self):
         yield from self._map.items()
 
+    def __length_hint__(self):
+        return len(self._map)
+
     def __contains__(self, key):
         return key in self._map
 
