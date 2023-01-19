@@ -562,10 +562,8 @@ class DynamicResolver:
         fns = self._get_resolvers_for_parameters(concrete_type, context, params)
         resolvers = {}
 
-        i = 0
-        for name in annotations.keys():
+        for i, name in enumerate(annotations.keys()):
             resolvers[name] = fns[i]
-            i += 1
 
         return get_annotations_type_provider(
             self.concrete_type, resolvers, self.life_style, context
