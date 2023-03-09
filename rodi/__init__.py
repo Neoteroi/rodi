@@ -477,7 +477,7 @@ class DynamicResolver:
         services = self.services
 
         for param_name, param in params.items():
-            if param_name == "self":
+            if param_name in ("self", "args", "kwargs"):
                 continue
 
             param_type = param.annotation

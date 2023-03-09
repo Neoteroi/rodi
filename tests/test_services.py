@@ -7,6 +7,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    Protocol,
     Sequence,
     Tuple,
     Type,
@@ -2382,3 +2383,29 @@ def test_container_iter():
     for key, value in container:
         assert key is A or key is B
         assert isinstance(value, DynamicResolver)
+
+
+def test_provide_protocol_generic() -> None:
+    T = TypeVar("T")
+
+    class P(Protocol[T]):
+        def foo(self, t: T) -> T:
+            ...
+
+    class A:
+        ...
+
+    class Impl(P[A]):
+        def foo(self, t: A) -> A:
+            return t
+
+    container = Container()
+
+    container.register(Impl)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
