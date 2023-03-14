@@ -93,7 +93,6 @@ class IValueProvider:
 
 
 class ValueProvider(IValueProvider):
-
     __slots__ = "_value"
 
     def __init__(self, value):

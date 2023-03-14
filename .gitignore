@@ -12,3 +12,4 @@ deps
 *.py,cover
 junit
 coverage.xml
+.venv
