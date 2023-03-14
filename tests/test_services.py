@@ -7,7 +7,6 @@ from typing import (
     Iterable,
     List,
     Mapping,
-    Protocol,
     Sequence,
     Tuple,
     Type,
@@ -84,6 +83,13 @@ from tests.examples import (
 )
 
 T_1 = TypeVar("T_1")
+
+
+try:
+    from typing import Protocol
+except ImportError:  # pragma: no cover
+    # support for Python 3.7
+    from typing_extensions import Protocol
 
 
 class LoggedVar(Generic[T_1]):
