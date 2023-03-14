@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2023-03-14 :croissant:
+- Removes the strict requirement for resolved classes to have `__init__`
+  methods defined, to add support for `Protocol`s that do not define an
+  `__init__` method (thus using `*args`, `**kwargs`,
+  [akhundMurad](https://github.com/akhundMurad)'s contribution.
+- Corrects a code smell, replacing an `i` counter with `enumerate`,
+  [GLEF1X](https://github.com/GLEF1X)'s contribution.
+
 ## [2.0.0] - 2023-01-07 :star:
 - Introduces a `ContainerProtocol` to improve interoperability between
   libraries and alternative implementations of DI containers. The protocol is
