@@ -2420,7 +2420,7 @@ def test_provide_protocol_generic() -> None:
 
 def test_ignore_class_var():
     """
-    ClassVar attributes must be ignored.
+    ClassVar attributes must be ignored, because they are not instance attributes.
     """
 
     class A:
