@@ -2,6 +2,7 @@ import sys
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
+    ClassVar,
     Dict,
     Generic,
     Iterable,
@@ -2415,3 +2416,44 @@ def test_provide_protocol_generic() -> None:
         pytest.fail(str(e))
 
     assert isinstance(resolved, Impl)
+
+
+def test_ignore_class_var():
+    """
+    ClassVar attributes must be ignored, because they are not instance attributes.
+    """
+
+    class A:
+        foo: ClassVar[str] = "foo"
+
+    class B:
+        example: ClassVar[str] = "example"
+        dependency: A
+
+    container = Container()
+
+    container.register(A)
+    container.register(B)
+
+    b = container.resolve(B)
+
+    assert isinstance(b, B)
+    assert b.example == "example"
+    assert b.dependency.foo == "foo"
+
+
+def test_ignore_subclass_class_var():
+    """
+    Class attributes must be ignored in implementations.
+    """
+
+    class A:
+        foo = "foo"
+
+    container = Container()
+
+    container.register(A)
+
+    a = container.resolve(A)
+
+    assert a.foo == "foo"

@@ -7,6 +7,7 @@ from inspect import Signature, _empty, isabstract, isclass, iscoroutinefunction
 from typing import (
     Any,
     Callable,
+    ClassVar,
     DefaultDict,
     Dict,
     Mapping,
@@ -553,16 +554,30 @@ class DynamicResolver:
 
         return ArgsTypeProvider(concrete_type, fns)
 
+    def _ignore_class_attribute(self, key: str, value) -> bool:
+        """
+        Returns a value indicating whether a class attribute should be ignored for
+        dependency resolution, by name and value.
+        """
+        try:
+            return value.__origin__ is ClassVar
+        except AttributeError:
+            return False
+
     def _resolve_by_annotations(
         self, context: ResolutionContext, annotations: Dict[str, Type]
     ):
-        params = {key: Dependency(key, value) for key, value in annotations.items()}
+        params = {
+            key: Dependency(key, value)
+            for key, value in annotations.items()
+            if not self._ignore_class_attribute(key, value)
+        }
         concrete_type = self.concrete_type
 
         fns = self._get_resolvers_for_parameters(concrete_type, context, params)
         resolvers = {}
 
-        for i, name in enumerate(annotations.keys()):
+        for i, name in enumerate(params.keys()):
             resolvers[name] = fns[i]
 
         return get_annotations_type_provider(
