@@ -13,3 +13,4 @@ deps
 junit
 coverage.xml
 .venv
+.idea
