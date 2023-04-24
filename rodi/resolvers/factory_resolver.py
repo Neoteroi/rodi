@@ -1,7 +1,7 @@
+from rodi.providers import FactoryTypeProvider, ScopedFactoryTypeProvider
 from rodi.providers.singleton_factory_type_provider import SingletonFactoryTypeProvider
 from rodi.resolution_context import ResolutionContext
 from rodi.service_life_style import ServiceLifeStyle
-from rodi.providers import ScopedFactoryTypeProvider, FactoryTypeProvider
 
 
 class FactoryResolver:

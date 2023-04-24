@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Type, TypeVar
+from typing import Dict, Optional, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -8,7 +8,7 @@ class ActivationScope:
 
     def __init__(
         self,
-        provider: Optional["Services"] = None,
+        provider: Optional["Services"] = None,  # type: ignore # noqa: F821
         scoped_services: Optional[Dict[Type[T], T]] = None,
     ):
         self.provider = provider

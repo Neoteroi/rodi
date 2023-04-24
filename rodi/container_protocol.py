@@ -1,9 +1,9 @@
-from typing import TypeVar, Union, Type
+from typing import Type, TypeVar, Union
 
 try:
     from typing import Protocol
 except ImportError:  # pragma: no cover
-    from typing_extensions import Protocol
+    from typing_extensions import Protocol  # type: ignore
 
 
 T = TypeVar("T")

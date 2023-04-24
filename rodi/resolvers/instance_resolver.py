@@ -1,5 +1,5 @@
-from rodi.resolution_context import ResolutionContext
 from rodi.providers.instance_provider import InstanceProvider
+from rodi.resolution_context import ResolutionContext
 from rodi.utils.class_name import class_name
 
 

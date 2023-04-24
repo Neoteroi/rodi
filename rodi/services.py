@@ -1,10 +1,10 @@
 import sys
-from inspect import _empty, Signature, iscoroutinefunction
-from typing import Union, Type, Any, Optional, TypeVar, cast, Callable, Dict
+from inspect import Signature, _empty, iscoroutinefunction
+from typing import Any, Callable, Dict, Optional, Type, TypeVar, Union, cast
 
-from rodi.exceptions import OverridingServiceException, CannotResolveTypeException
 from rodi.activation_scope import ActivationScope
 from rodi.dependency import Dependency
+from rodi.exceptions import CannotResolveTypeException, OverridingServiceException
 from rodi.utils.class_name import class_name
 from rodi.utils.get_factory_annotations_or_throw import (
     _get_factory_annotations_or_throw,

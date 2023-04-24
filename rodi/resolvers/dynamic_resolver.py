@@ -1,33 +1,26 @@
 import sys
 from inspect import Signature, _empty, isabstract, isclass
-from typing import (
-    ClassVar,
-    Dict,
-    Mapping,
-    Type,
-    Union,
-    get_type_hints,
-)
+from typing import ClassVar, Dict, Mapping, Type, Union, get_type_hints
 
-from rodi.resolution_context import ResolutionContext
 from rodi.dependency import Dependency
-from rodi.service_life_style import ServiceLifeStyle
 from rodi.exceptions import (
-    UnsupportedUnionTypeException,
     CannotResolveParameterException,
     CircularDependencyException,
+    UnsupportedUnionTypeException,
 )
 from rodi.providers import (
-    TypeProvider,
+    ArgsTypeProvider,
+    ScopedArgsTypeProvider,
     ScopedTypeProvider,
     SingletonTypeProvider,
-    ScopedArgsTypeProvider,
-    ArgsTypeProvider,
+    TypeProvider,
 )
+from rodi.resolution_context import ResolutionContext
 from rodi.resolvers.factory_resolver import FactoryResolver
+from rodi.service_life_style import ServiceLifeStyle
 from rodi.utils.class_name import class_name
-from rodi.utils.get_obj_locals import _get_obj_locals
 from rodi.utils.get_annotations_type_provider import get_annotations_type_provider
+from rodi.utils.get_obj_locals import _get_obj_locals
 from rodi.utils.get_plain_class_factory import _get_plain_class_factory
 
 

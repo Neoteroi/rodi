@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, Any
+from typing import Any, Callable
 
 
 def inject(globalsns=None, localns=None) -> Callable[..., Any]:

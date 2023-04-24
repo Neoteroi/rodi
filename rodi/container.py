@@ -1,39 +1,29 @@
 from collections import defaultdict
 from inspect import Signature, _empty, isabstract
-from typing import (
-    Any,
-    Callable,
-    DefaultDict,
-    Dict,
-    Optional,
-    Set,
-    Type,
-    Union,
-)
+from typing import Any, Callable, DefaultDict, Dict, Optional, Set, Type, Union
 
-from rodi.resolvers.factory_resolver import FactoryResolver
+from rodi.activation_scope import ActivationScope
+from rodi.container_protocol import ContainerProtocol, T
+from rodi.exceptions import (
+    AliasAlreadyDefined,
+    AliasConfigurationError,
+    InvalidFactory,
+    InvalidOperationInStrictMode,
+    MissingTypeException,
+    OverridingServiceException,
+)
+from rodi.factory_wrappers import FactoryWrapperContextArg, FactoryWrapperNoArgs
 from rodi.resolution_context import ResolutionContext
+from rodi.resolvers.dynamic_resolver import DynamicResolver
+from rodi.resolvers.factory_resolver import FactoryResolver
+from rodi.resolvers.instance_resolver import InstanceResolver
+from rodi.service_life_style import ServiceLifeStyle
+from rodi.services import Services
+from rodi.utils.class_name import class_name
 from rodi.utils.get_factory_annotations_or_throw import (
     _get_factory_annotations_or_throw,
 )
 from rodi.utils.to_standard_param_name import to_standard_param_name
-from rodi.resolvers.instance_resolver import InstanceResolver
-from rodi.resolvers.dynamic_resolver import DynamicResolver
-from rodi.activation_scope import ActivationScope
-from rodi.exceptions import (
-    AliasAlreadyDefined,
-    OverridingServiceException,
-    InvalidFactory,
-    MissingTypeException,
-    AliasConfigurationError,
-)
-from rodi.factory_wrappers import FactoryWrapperNoArgs, FactoryWrapperContextArg
-from rodi.exceptions import InvalidOperationInStrictMode
-from rodi.service_life_style import ServiceLifeStyle
-from rodi.container_protocol import ContainerProtocol, T
-from rodi.services import Services
-from rodi.utils.class_name import class_name
-
 
 AliasesTypeHint = Dict[str, Type]
 FactoryCallableNoArguments = Callable[[], Any]

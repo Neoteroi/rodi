@@ -1,8 +1,8 @@
-from typing import Type, Mapping, Callable
+from typing import Callable, Mapping, Type
 
-from rodi.service_life_style import ServiceLifeStyle
 from rodi.resolution_context import ResolutionContext
 from rodi.resolvers.factory_resolver import FactoryResolver
+from rodi.service_life_style import ServiceLifeStyle
 
 
 def get_annotations_type_provider(
