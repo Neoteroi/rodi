@@ -1,7 +1,6 @@
 def class_name(input_type):
-    if input_type in {list, set} and str(
-        type(input_type) == "<class 'types.GenericAlias'>"
-    ):
+    generic_alias = "<class 'types.GenericAlias'>"
+    if input_type in {list, set} and str(type(input_type)) == generic_alias:
         # for Python 3.9 list[T], set[T]
         return str(input_type)
     try:
