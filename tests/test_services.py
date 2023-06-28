@@ -483,6 +483,24 @@ def test_scoped_services():
     assert b is not d
 
 
+def test_scopeed_service_from_scoped_services():
+    container = Container()
+    provider = container.build_provider()
+
+    scoped_service = IdGetter()
+
+    with ActivationScope(provider, {
+        IdGetter: scoped_service,
+    }) as context:
+        a = provider.get(IdGetter, context)
+        b = provider.get(IdGetter, default=None)
+    c = provider.get(IdGetter, default=None)
+
+    assert a is scoped_service
+    assert b is None
+    assert c is None
+
+
 def test_scoped_services_with_shortcut():
     container = Container()
     container.add_scoped(IdGetter)

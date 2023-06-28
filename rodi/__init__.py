@@ -704,13 +704,14 @@ class Services:
             scope = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
+        scoped_service = scope.scoped_services.get(desired_type)
 
-        if not resolver:
+        if not resolver and not scoped_service:
             if default is not ...:
                 return cast(T, default)
             raise CannotResolveTypeException(desired_type)
 
-        return cast(T, resolver(scope, desired_type))
+        return cast(T, scoped_service or resolver(scope, desired_type))
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
