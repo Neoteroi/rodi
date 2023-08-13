@@ -466,6 +466,45 @@ def test_transient_services():
     assert d is not c
 
 
+def test_scoped_services_use_scope_context_by_default():
+    container = Container()
+    container._add_exact_scoped(IdGetter)
+    provider = container.build_provider()
+
+    with ActivationScope(provider) as scoped_provider:
+        a = scoped_provider.get(IdGetter)
+        b = scoped_provider.get(IdGetter)
+        c = scoped_provider.get(IdGetter)
+    d = provider.get(IdGetter)
+
+    assert a is b
+    assert b is c
+    assert a is not d
+    assert b is not d
+
+
+def test_scoped_services_use_correct_scope_context_by_default_with_multiple_scopes():
+    container = Container()
+    container._add_exact_scoped(IdGetter)
+    provider = container.build_provider()
+
+    with ActivationScope(provider) as scoped_provider_1:
+        a = scoped_provider_1.get(IdGetter)
+        b = scoped_provider_1.get(IdGetter)
+        with ActivationScope(provider) as scoped_provider_2:
+            c = scoped_provider_2.get(IdGetter)
+            d = scoped_provider_2.get(IdGetter)
+            e = scoped_provider_2.get(IdGetter, scoped_provider_1)
+    f = provider.get(IdGetter)
+
+    assert a is b
+    assert b is e
+    assert c is d
+    assert a is not c
+    assert a is not f
+    assert c is not f
+
+
 def test_scoped_services():
     container = Container()
     container._add_exact_scoped(IdGetter)
