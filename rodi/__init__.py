@@ -79,7 +79,7 @@ def _get_obj_locals(obj) -> Optional[Dict[str, Any]]:
 
 
 def class_name(input_type):
-    if input_type in {list, set} and str(
+    if input_type in {list, set} and str(  # noqa: E721
         type(input_type) == "<class 'types.GenericAlias'>"
     ):
         # for Python 3.9 list[T], set[T]
@@ -233,9 +233,9 @@ class ActivationScope:
     def __init__(
         self,
         provider: Optional["Services"] = None,
-        scoped_services: Optional[Dict[Type[T], T]] = None,
+        scoped_services: Optional[Dict[Union[Type[T], str], T]] = None,
     ):
-        self.provider = provider
+        self.provider = provider or Services()
         self.scoped_services = scoped_services or {}
 
     def __enter__(self):
@@ -248,7 +248,7 @@ class ActivationScope:
 
     def get(
         self,
-        desired_type: Union[Type[T], str],
+        desired_type: Union[Union[Type[T], str], str],
         scope: Optional["ActivationScope"] = None,
         *,
         default: Optional[Any] = ...,
@@ -713,13 +713,14 @@ class Services:
             scope = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
+        scoped_service = scope.scoped_services.get(desired_type) if scope else None
 
-        if not resolver:
+        if not resolver and not scoped_service:
             if default is not ...:
                 return cast(T, default)
             raise CannotResolveTypeException(desired_type)
 
-        return cast(T, resolver(scope, desired_type))
+        return cast(T, scoped_service or resolver(scope, desired_type))
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
@@ -756,13 +757,15 @@ class Services:
 
         if iscoroutinefunction(method):
 
-            async def async_executor(scoped: Optional[Dict[Type, Any]] = None):
+            async def async_executor(
+                scoped: Optional[Dict[Union[Type, str], Any]] = None
+            ):
                 with ActivationScope(self, scoped) as context:
                     return await method(*[fn(context) for fn in fns])
 
             return async_executor
 
-        def executor(scoped: Optional[Dict[Type, Any]] = None):
+        def executor(scoped: Optional[Dict[Union[Type, str], Any]] = None):
             with ActivationScope(self, scoped) as context:
                 return method(*[fn(context) for fn in fns])
 
