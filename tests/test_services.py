@@ -505,6 +505,18 @@ def test_scoped_services_use_correct_scope_context_by_default_with_multiple_scop
     assert c is not f
 
 
+def test_scoped_services_works_with_str_keys():
+    container = Container()
+    container.add_singleton("Id", IdGetter)
+    provider = container.build_provider()
+
+    with ActivationScope(provider) as scoped_provider:
+        a = scoped_provider.get("Id")
+    b = provider.get("id")
+
+    assert a is b
+
+
 def test_scoped_services():
     container = Container()
     container._add_exact_scoped(IdGetter)
@@ -538,9 +550,19 @@ def test_scoped_service_from_scoped_services():
         b = provider.get(IdGetter, default=None)
     c = provider.get(IdGetter, default=None)
 
+    with ActivationScope(
+        scoped_services={
+            IdGetter: scoped_service,
+        }
+    ) as context:
+        d = provider.get(IdGetter, context)
+        e = provider.get(IdGetter, default=None)
+
     assert a is scoped_service
     assert b is None
     assert c is None
+    assert d is scoped_service
+    assert e is None
 
 
 def test_scoped_services_with_shortcut():
