@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [2.0.3] - 2023-08-14 :sun_with_face:
-- Checks `scoped_services` before resolving from map when in a scope, by @StummeJ.
-- Allow getting from scope context without needing to provide scope, by @StummeJ.
+- Checks `scoped_services` before resolving from map when in a scope, by [StummeJ](https://github.com/StummeJ).
+- Allow getting from scope context without needing to provide scope, by [StummeJ](https://github.com/StummeJ).
 
 ## [2.0.2] - 2023-03-31 :flamingo:
 - Ignores `ClassVar` properties when resolving dependencies by class notations.
