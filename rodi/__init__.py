@@ -79,7 +79,7 @@ def _get_obj_locals(obj) -> Optional[Dict[str, Any]]:
 
 
 def class_name(input_type):
-    if input_type in {list, set} and str(
+    if input_type in {list, set} and str(  # noqa: E721
         type(input_type) == "<class 'types.GenericAlias'>"
     ):
         # for Python 3.9 list[T], set[T]
