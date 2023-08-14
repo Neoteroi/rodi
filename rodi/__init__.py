@@ -246,6 +246,15 @@ class ActivationScope:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.dispose()
 
+    def get(
+        self,
+        desired_type: Union[Type[T], str],
+        scope: Optional["ActivationScope"] = None,
+        *,
+        default: Optional[Any] = ...,
+    ) -> T:
+        return self.provider.get(desired_type, scope or self, default=default)
+
     def dispose(self):
         if self.provider:
             self.provider = None
