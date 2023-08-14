@@ -248,7 +248,7 @@ class ActivationScope:
 
     def get(
         self,
-        desired_type: Union[Union[Type[T], str], str],
+        desired_type: Union[Type[T], str],
         scope: Optional["ActivationScope"] = None,
         *,
         default: Optional[Any] = ...,
