@@ -483,15 +483,18 @@ def test_scoped_services():
     assert b is not d
 
 
-def test_scopeed_service_from_scoped_services():
+def test_scoped_service_from_scoped_services():
     container = Container()
     provider = container.build_provider()
 
     scoped_service = IdGetter()
 
-    with ActivationScope(provider, {
-        IdGetter: scoped_service,
-    }) as context:
+    with ActivationScope(
+        provider,
+        {
+            IdGetter: scoped_service,
+        },
+    ) as context:
         a = provider.get(IdGetter, context)
         b = provider.get(IdGetter, default=None)
     c = provider.get(IdGetter, default=None)
