@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - ????-??-??
+- Refactors the library.
+- Removes the use of `__call__`.
+
 ## [2.0.3] - 2023-08-14 :sun_with_face:
 - Checks `scoped_services` before resolving from map when in a scope, by [StummeJ](https://github.com/StummeJ).
 - Allow getting from scope context without needing to provide scope, by [StummeJ](https://github.com/StummeJ).

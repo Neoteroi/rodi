@@ -36,10 +36,9 @@ from rodi import (
     ServiceLifeStyle,
     Services,
     UnsupportedUnionTypeException,
-    _get_factory_annotations_or_throw,
     inject,
-    to_standard_param_name,
 )
+from rodi.common import get_factory_annotations_or_throw, to_standard_param_name
 from tests.examples import (
     A,
     B,
@@ -2325,7 +2324,7 @@ def test_factory_without_locals_raises():
         ...
 
     with pytest.raises(FactoryMissingContextException):
-        _get_factory_annotations_or_throw(factory_without_context)
+        get_factory_annotations_or_throw(factory_without_context)
 
 
 def test_factory_with_locals_get_annotations():
@@ -2333,7 +2332,7 @@ def test_factory_with_locals_get_annotations():
     def factory_without_context() -> "Cat":
         ...
 
-    annotations = _get_factory_annotations_or_throw(factory_without_context)
+    annotations = get_factory_annotations_or_throw(factory_without_context)
 
     assert annotations["return"] is Cat
 
