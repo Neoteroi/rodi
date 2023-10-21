@@ -396,7 +396,7 @@ class SingletonTypeProvider:
         self._instance = None
 
     def __call__(self, context, parent_type):
-        if not self._instance:
+        if self._instance is None:
             self._instance = (
                 self._type(*[fn(context, self._type) for fn in self._args_callbacks])
                 if self._args_callbacks
