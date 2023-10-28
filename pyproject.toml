@@ -5,9 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "rodi"
 dynamic = ["version"]
-authors = [
-    { name = "Roberto Prevato", email = "roberto.prevato@gmail.com" },
-]
+authors = [{ name = "Roberto Prevato", email = "roberto.prevato@gmail.com" }]
 description = "Implementation of dependency injection for Python 3"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -20,33 +18,32 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
 ]
 keywords = ["dependency", "injection", "type", "hints", "typing"]
-dependencies = [
-    "typing_extensions; python_version < '3.8'"
-]
+dependencies = ["typing_extensions; python_version < '3.8'"]
 
 [tool.hatch.build.targets.sdist]
 exclude = [
-  "/.github",
-  "/docs",
-  "/examples",
-  "/deps",
-  "/htmlcov",
-  "/tests",
-  "mkdocs-plugins.code-workspace",
-  "Makefile",
-  "CODE_OF_CONDUCT.md",
-  ".isort.cfg",
-  ".gitignore",
-  ".flake8",
-  "junit",
-  "rodi.code-workspace",
-  "requirements.txt",
-  "mypy.ini",
-  "pytest.ini",
-  "examples-summary.py",
+    "/.github",
+    "/docs",
+    "/examples",
+    "/deps",
+    "/htmlcov",
+    "/tests",
+    "mkdocs-plugins.code-workspace",
+    "Makefile",
+    "CODE_OF_CONDUCT.md",
+    ".isort.cfg",
+    ".gitignore",
+    ".flake8",
+    "junit",
+    "rodi.code-workspace",
+    "requirements.txt",
+    "mypy.ini",
+    "pytest.ini",
+    "examples-summary.py",
 ]
 
 [tool.hatch.version]
