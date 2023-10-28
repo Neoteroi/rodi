@@ -7,7 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.0.4] - 2023-10-28 :dragon:
 - Fixes bug in Singleton implementation: stop singleton provider from recreating
-  objects implementing `__len__`, by [Klavionik](https://github.com/Klavionik)
+  objects implementing `__len__`, by [Klavionik](https://github.com/Klavionik).
+- Add Python 3.12 and remove Python 3.7 from the build matrix.
 
 ## [2.0.3] - 2023-08-14 :sun_with_face:
 - Checks `scoped_services` before resolving from map when in a scope, by [StummeJ](https://github.com/StummeJ).
