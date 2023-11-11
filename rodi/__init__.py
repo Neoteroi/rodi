@@ -572,11 +572,12 @@ class DynamicResolver:
         """
         Returns a value indicating whether a class attribute should be ignored for
         dependency resolution, by name and value.
+        It's ignored if it's a ClassVar or if it's already initialized explicitly.
         """
-        try:
-            return value.__origin__ is ClassVar
-        except AttributeError:
-            return False
+        is_classvar = getattr(value, "__origin__", None) is ClassVar
+        is_initialized = getattr(self.concrete_type, key, None) is not None
+
+        return is_classvar or is_initialized
 
     def _resolve_by_annotations(
         self, context: ResolutionContext, annotations: Dict[str, Type]

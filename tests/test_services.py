@@ -2591,3 +2591,40 @@ def test_singleton_register_order_first():
 
     # check that singletons are always the same instance
     assert bar.foo is bar2.foo is foo
+
+
+def test_ignore_class_variable_if_already_initialized():
+    """
+    if a class variable is already initialized, it should not be overridden by
+    resolving a new instance nor fail if rodi can't resolve it.
+    """
+
+    foo_instance = Foo()
+
+    class A:
+        foo: Foo = foo_instance
+
+    class B:
+        example: ClassVar[str] = "example"
+        dependency: A
+
+    container = Container()
+
+    container.register(A)
+    container.register(B)
+    container._add_exact_singleton(Foo)
+
+    b = container.resolve(B)
+    a = container.resolve(A)
+    foo = container.resolve(Foo)
+
+    assert isinstance(a, A)
+    assert isinstance(a.foo, Foo)
+    assert foo_instance is a.foo
+
+    assert isinstance(b, B)
+    assert b.example == "example"
+    assert b.dependency.foo is foo_instance
+
+    # check that is not being overridden by resolving a new instance
+    assert foo is not a.foo
