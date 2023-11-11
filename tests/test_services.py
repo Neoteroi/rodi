@@ -2539,3 +2539,55 @@ def test_ignore_subclass_class_var():
     a = container.resolve(A)
 
     assert a.foo == "foo"
+
+
+def test_singleton_register_order_last():
+    """
+    The registration order of singletons should not matter.
+    Check that singletons are not registered twice when they are registered
+    after their dependents.
+    """
+
+    class Bar:
+        foo: Foo
+
+    class Bar2:
+        foo: Foo
+
+    container = Container()
+    container.register(Bar)
+    container.register(Bar2)
+    container._add_exact_singleton(Foo)
+
+    bar = container.resolve(Bar)
+    bar2 = container.resolve(Bar2)
+    foo = container.resolve(Foo)
+
+    # check that singletons are always the same instance
+    assert bar.foo is bar2.foo is foo
+
+
+def test_singleton_register_order_first():
+    """
+    The registration order of singletons should not matter.
+    Check that singletons are not registered twice when they are registered
+    before their dependents.
+    """
+
+    class Bar:
+        foo: Foo
+
+    class Bar2:
+        foo: Foo
+
+    container = Container()
+    container._add_exact_singleton(Foo)
+    container.register(Bar)
+    container.register(Bar2)
+
+    bar = container.resolve(Bar)
+    bar2 = container.resolve(Bar2)
+    foo = container.resolve(Foo)
+
+    # check that singletons are always the same instance
+    assert bar.foo is bar2.foo is foo

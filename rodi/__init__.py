@@ -475,7 +475,12 @@ class DynamicResolver:
         assert (
             reg is not None
         ), f"A resolver for type {class_name(desired_type)} is not configured"
-        return reg(context)
+        resolver = reg(context)
+
+        # add the resolver to the context, so we can find it
+        # next time we need it
+        context.resolved[desired_type] = resolver
+        return resolver
 
     def _get_resolvers_for_parameters(
         self,
@@ -1146,14 +1151,23 @@ class Container(ContainerProtocol):
             _map: Dict[Union[str, Type], Type] = {}
 
             for _type, resolver in self._map.items():
-                # NB: do not call resolver if one was already prepared for the type
-                assert _type not in context.resolved, "_map keys must be unique"
-
                 if isinstance(resolver, DynamicResolver):
                     context.dynamic_chain.clear()
 
-                _map[_type] = resolver(context)
-                context.resolved[_type] = _map[_type]
+                if _type in context.resolved:
+                    # assert _type not in context.resolved, "_map keys must be unique"
+                    # check if its in the map
+                    if _type in _map:
+                        # NB: do not call resolver if one was already prepared for the type
+                        raise OverridingServiceException(_type, resolver)
+                    else:
+                        resolved = context.resolved[_type]
+                else:
+                    # add to context so that we don't repeat operations
+                    resolved = resolver(context)
+                    context.resolved[_type] = resolved
+
+                _map[_type] = resolved
 
                 type_name = class_name(_type)
                 if "." not in type_name:
