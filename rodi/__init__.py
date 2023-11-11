@@ -1159,7 +1159,8 @@ class Container(ContainerProtocol):
                     # assert _type not in context.resolved, "_map keys must be unique"
                     # check if its in the map
                     if _type in _map:
-                        # NB: do not call resolver if one was already prepared for the type
+                        # NB: do not call resolver if one was already prepared for the
+                        # type
                         raise OverridingServiceException(_type, resolver)
                     else:
                         resolved = context.resolved[_type]
