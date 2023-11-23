@@ -16,10 +16,13 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    _no_init_or_replace_init,
     cast,
     get_type_hints,
 )
+
+if sys.version_info >= (3, 9):  # pragma: no cover
+    # Python 3.9
+    from typing import _no_init_or_replace_init
 
 try:
     from typing import Protocol
@@ -580,6 +583,16 @@ class DynamicResolver:
 
         return is_classvar or is_initialized
 
+    def _has_default_init(self):
+        if self.concrete_type.__init__ is object.__init__:
+            return True
+
+        if sys.version_info >= (3, 9):  # pragma: no cover
+            # Python 3.9
+            if self.concrete_type.__init__ is _no_init_or_replace_init:
+                return True
+        return False
+
     def _resolve_by_annotations(
         self, context: ResolutionContext, annotations: Dict[str, Type]
     ):
@@ -606,11 +619,7 @@ class DynamicResolver:
         chain = context.dynamic_chain
         chain.append(concrete_type)
 
-        if getattr(concrete_type, "__init__") in [
-            object.__init__,
-            # for protocols that doesn't defile its own init:
-            _no_init_or_replace_init,
-        ]:
+        if self._has_default_init():
             annotations = get_type_hints(
                 concrete_type,
                 vars(sys.modules[concrete_type.__module__]),
