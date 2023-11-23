@@ -16,6 +16,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    _no_init_or_replace_init,
     cast,
     get_type_hints,
 )
@@ -605,7 +606,11 @@ class DynamicResolver:
         chain = context.dynamic_chain
         chain.append(concrete_type)
 
-        if getattr(concrete_type, "__init__") is object.__init__:
+        if getattr(concrete_type, "__init__") in [
+            object.__init__,
+            # for protocols that doesn't defile its own init:
+            _no_init_or_replace_init,
+        ]:
             annotations = get_type_hints(
                 concrete_type,
                 vars(sys.modules[concrete_type.__module__]),
