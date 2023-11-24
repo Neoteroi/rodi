@@ -21,8 +21,9 @@ from typing import (
 )
 
 if sys.version_info >= (3, 9):  # pragma: no cover
-    # Python 3.9
-    from typing import _no_init_or_replace_init
+    from typing import _no_init_or_replace_init as _no_init
+elif sys.version_info >= (3, 8):  # pragma: no cover
+    from typing import _no_init
 
 try:
     from typing import Protocol
@@ -584,12 +585,13 @@ class DynamicResolver:
         return is_classvar or is_initialized
 
     def _has_default_init(self):
-        if self.concrete_type.__init__ is object.__init__:
+        init = getattr(self.concrete_type, "__init__", None)
+
+        if init is object.__init__:
             return True
 
-        if sys.version_info >= (3, 9):  # pragma: no cover
-            # Python 3.9
-            if self.concrete_type.__init__ is _no_init_or_replace_init:
+        if sys.version_info >= (3, 8):  # pragma: no cover
+            if init is _no_init:
                 return True
         return False
 
