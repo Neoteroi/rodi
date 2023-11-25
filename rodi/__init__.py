@@ -20,6 +20,11 @@ from typing import (
     get_type_hints,
 )
 
+if sys.version_info >= (3, 9):  # pragma: no cover
+    from typing import _no_init_or_replace_init as _no_init
+elif sys.version_info >= (3, 8):  # pragma: no cover
+    from typing import _no_init
+
 try:
     from typing import Protocol
 except ImportError:  # pragma: no cover
@@ -579,6 +584,17 @@ class DynamicResolver:
 
         return is_classvar or is_initialized
 
+    def _has_default_init(self):
+        init = getattr(self.concrete_type, "__init__", None)
+
+        if init is object.__init__:
+            return True
+
+        if sys.version_info >= (3, 8):  # pragma: no cover
+            if init is _no_init:
+                return True
+        return False
+
     def _resolve_by_annotations(
         self, context: ResolutionContext, annotations: Dict[str, Type]
     ):
@@ -605,7 +621,7 @@ class DynamicResolver:
         chain = context.dynamic_chain
         chain.append(concrete_type)
 
-        if getattr(concrete_type, "__init__") is object.__init__:
+        if self._has_default_init():
             annotations = get_type_hints(
                 concrete_type,
                 vars(sys.modules[concrete_type.__module__]),

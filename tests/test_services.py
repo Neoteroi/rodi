@@ -2,6 +2,7 @@ import sys
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
+    Any,
     ClassVar,
     Dict,
     Generic,
@@ -2474,6 +2475,62 @@ def test_container_iter():
         assert isinstance(value, DynamicResolver)
 
 
+def test_provide_protocol_with_attribute_dependency() -> None:
+    class P(Protocol):
+        def foo(self) -> Any:
+            ...
+
+    class Dependency:
+        pass
+
+    class Impl(P):
+        # attribute dependency
+        dependency: Dependency
+
+        def foo(self) -> Any:
+            pass
+
+    container = Container()
+    container.register(Dependency)
+    container.register(Impl)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
+
+
+def test_provide_protocol_with_init_dependency() -> None:
+    class P(Protocol):
+        def foo(self) -> Any:
+            ...
+
+    class Dependency:
+        pass
+
+    class Impl(P):
+        def __init__(self, dependency: Dependency) -> None:
+            self.dependency = dependency
+
+        def foo(self) -> Any:
+            pass
+
+    container = Container()
+    container.register(Dependency)
+    container.register(Impl)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
+
+
 def test_provide_protocol_generic() -> None:
     T = TypeVar("T")
 
@@ -2498,6 +2555,39 @@ def test_provide_protocol_generic() -> None:
         pytest.fail(str(e))
 
     assert isinstance(resolved, Impl)
+
+
+def test_provide_protocol_generic_with_inner_dependency() -> None:
+    T = TypeVar("T")
+
+    class P(Protocol[T]):
+        def foo(self, t: T) -> T:
+            ...
+
+    class A:
+        ...
+
+    class Dependency:
+        pass
+
+    class Impl(P[A]):
+        dependency: Dependency
+
+        def foo(self, t: A) -> A:
+            return t
+
+    container = Container()
+
+    container.register(Impl)
+    container.register(Dependency)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
 
 
 def test_ignore_class_var():
