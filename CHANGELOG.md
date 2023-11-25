@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.5] - 2023-11-25 :lab_coat:
+- Adds support for resolving `Protocol` classes even when they don't define an
+  `__init__` method, by @lucas-labs
+- Fixes bug in service provider build logic causing singletons to be instantiated
+  n times when they are registered after its dependant, by @lucas-labs
+- Changes the "ignore attributes" logic so that if a class variable has already
+  been initialized externally, rodi doesn't attempt to reinitialize it (and to
+  also prevent overriding it if the initialized class variable is also a
+  registered object), by @lucas-labs
+
 ## [2.0.4] - 2023-10-28 :dragon:
 - Fixes bug in Singleton implementation: stop singleton provider from recreating
   objects implementing `__len__`, by [Klavionik](https://github.com/Klavionik).
