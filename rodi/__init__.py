@@ -20,10 +20,11 @@ from typing import (
     get_type_hints,
 )
 
-if sys.version_info >= (3, 9):  # pragma: no cover
-    from typing import _no_init_or_replace_init as _no_init
-elif sys.version_info >= (3, 8):  # pragma: no cover
-    from typing import _no_init
+if sys.version_info >= (3, 8):  # pragma: no cover
+    try:
+        from typing import _no_init_or_replace_init as _no_init
+    except ImportError:  # pragma: no cover
+        from typing import _no_init
 
 try:
     from typing import Protocol
