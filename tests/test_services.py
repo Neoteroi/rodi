@@ -2337,8 +2337,7 @@ def test_iterables_annotations_transient_factory(annotation, value):
 
 
 def test_factory_without_locals_raises():
-    def factory_without_context() -> None:
-        ...
+    def factory_without_context() -> None: ...
 
     with pytest.raises(FactoryMissingContextException):
         _get_factory_annotations_or_throw(factory_without_context)
@@ -2346,8 +2345,7 @@ def test_factory_without_locals_raises():
 
 def test_factory_with_locals_get_annotations():
     @inject()
-    def factory_without_context() -> "Cat":
-        ...
+    def factory_without_context() -> "Cat": ...
 
     annotations = _get_factory_annotations_or_throw(factory_without_context)
 
@@ -2364,21 +2362,17 @@ def test_deps_github_scenario():
                                               └── HTTPClient
     """
 
-    class HTTPClient:
-        ...
+    class HTTPClient: ...
 
-    class CommentsService:
-        ...
+    class CommentsService: ...
 
-    class ChecksService:
-        ...
+    class ChecksService: ...
 
     class CLAHandler:
         comments_service: CommentsService
         checks_service: ChecksService
 
-    class GitHubSettings:
-        ...
+    class GitHubSettings: ...
 
     class GitHubAuthHandler:
         settings: GitHubSettings
@@ -2494,11 +2488,9 @@ def test_provide_protocol_generic() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Impl(P[A]):
         def foo(self, t: A) -> A:
