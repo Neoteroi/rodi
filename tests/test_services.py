@@ -798,19 +798,21 @@ def test_invalid_factory_too_many_arguments_throws(method_name):
     container = Container()
     method = getattr(container, method_name)
 
-    def factory(context, activating_type, extra_argument_mistake):
+    def factory(context, activating_type, requested_type, extra_argument_mistake):
         return Cat("Celine")
 
     with raises(InvalidFactory):
         method(factory, Cat)
 
-    def factory(context, activating_type, extra_argument_mistake, two):
+    def factory(context, activating_type, requested_type, extra_argument_mistake, two):
         return Cat("Celine")
 
     with raises(InvalidFactory):
         method(factory, Cat)
 
-    def factory(context, activating_type, extra_argument_mistake, two, three):
+    def factory(
+        context, activating_type, requested_type, extra_argument_mistake, two, three
+    ):
         return Cat("Celine")
 
     with raises(InvalidFactory):
@@ -993,6 +995,15 @@ def cat_factory_with_context_and_activating_type(context, activating_type) -> Ca
     return Cat("Celine")
 
 
+def cat_factory_with_context_activating_type_and_requested_type(
+    context, activating_type, requested_type
+) -> Cat:
+    assert isinstance(context, ActivationScope)
+    assert activating_type is Cat
+    assert requested_type is Cat
+    return Cat("Celine")
+
+
 @pytest.mark.parametrize(
     "method_name,factory",
     [
@@ -1006,6 +1017,7 @@ def cat_factory_with_context_and_activating_type(context, activating_type) -> Ca
             cat_factory_no_args,
             cat_factory_with_context,
             cat_factory_with_context_and_activating_type,
+            cat_factory_with_context_activating_type_and_requested_type,
         ]
     ],
 )
@@ -1198,6 +1210,53 @@ def test_factory_can_receive_activating_type_as_parameter_nested_resolution_many
         help_controller.other.child.logger.name == "tests.test_services."
         "AnotherPathTwo"
     )
+
+
+@pytest.mark.parametrize(
+    "method_name", ["add_transient_by_factory", "add_scoped_by_factory"]
+)
+def test_factory_can_receive_requested_type_as_parameter(method_name):
+    class Db:
+        def __init__(self, activating, requested):
+            self.activating = activating
+            self.requested = requested
+
+    class Fetcher:
+        def __init__(self, db: Db):
+            self.db = db
+
+    container = Container()
+    container._add_exact_transient(Foo)
+
+    def factory(self, activating_type, requested_type) -> Db:
+        return Db(
+            activating_type.__module__ + "." + activating_type.__name__,
+            requested_type.__module__ + "." + requested_type.__name__,
+        )
+
+    method = getattr(container, method_name)
+    method(factory, Db)
+
+    container._add_exact_transient(Fetcher)
+
+    provider = container.build_provider()
+
+    db = provider.get(Db)
+
+    assert db is not None
+    assert db.activating is not None
+    assert db.activating == "tests.test_services.Db"
+    assert db.requested is not None
+    assert db.requested == "tests.test_services.Db"
+
+    fetcher = provider.get(Fetcher)
+
+    assert fetcher is not None
+    assert fetcher.db is not None
+    assert fetcher.db.activating is not None
+    assert fetcher.db.activating == "tests.test_services.Fetcher"
+    assert fetcher.db.requested is not None
+    assert fetcher.db.requested == "tests.test_services.Db"
 
 
 def test_service_provider_supports_set_by_class():
@@ -2322,8 +2381,7 @@ def test_iterables_annotations_transient_factory(annotation, value):
 
 
 def test_factory_without_locals_raises():
-    def factory_without_context() -> None:
-        ...
+    def factory_without_context() -> None: ...
 
     with pytest.raises(FactoryMissingContextException):
         _get_factory_annotations_or_throw(factory_without_context)
@@ -2331,8 +2389,7 @@ def test_factory_without_locals_raises():
 
 def test_factory_with_locals_get_annotations():
     @inject()
-    def factory_without_context() -> "Cat":
-        ...
+    def factory_without_context() -> "Cat": ...
 
     annotations = _get_factory_annotations_or_throw(factory_without_context)
 
@@ -2349,21 +2406,17 @@ def test_deps_github_scenario():
                                               └── HTTPClient
     """
 
-    class HTTPClient:
-        ...
+    class HTTPClient: ...
 
-    class CommentsService:
-        ...
+    class CommentsService: ...
 
-    class ChecksService:
-        ...
+    class ChecksService: ...
 
     class CLAHandler:
         comments_service: CommentsService
         checks_service: ChecksService
 
-    class GitHubSettings:
-        ...
+    class GitHubSettings: ...
 
     class GitHubAuthHandler:
         settings: GitHubSettings
@@ -2477,8 +2530,7 @@ def test_container_iter():
 
 def test_provide_protocol_with_attribute_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2505,8 +2557,7 @@ def test_provide_protocol_with_attribute_dependency() -> None:
 
 def test_provide_protocol_with_init_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2535,11 +2586,9 @@ def test_provide_protocol_generic() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Impl(P[A]):
         def foo(self, t: A) -> A:
@@ -2561,11 +2610,9 @@ def test_provide_protocol_generic_with_inner_dependency() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Dependency:
         pass
