@@ -336,9 +336,9 @@ class FactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: ActivationScope, parent_type):
+    def __call__(self, context: ActivationScope, parent_type: type):
         assert isinstance(context, ActivationScope)
-        return self.factory(context, parent_type)
+        return self.factory(context, parent_type, self._type)
 
 
 class SingletonFactoryTypeProvider:
@@ -349,9 +349,9 @@ class SingletonFactoryTypeProvider:
         self.factory = factory
         self.instance = None
 
-    def __call__(self, context: ActivationScope, parent_type):
+    def __call__(self, context: ActivationScope, parent_type: Type):
         if self.instance is None:
-            self.instance = self.factory(context, parent_type)
+            self.instance = self.factory(context, parent_type, self._type)
         return self.instance
 
 
@@ -362,11 +362,11 @@ class ScopedFactoryTypeProvider:
         self._type = _type
         self.factory = factory
 
-    def __call__(self, context: ActivationScope, parent_type):
+    def __call__(self, context: ActivationScope, parent_type: Type):
         if self._type in context.scoped_services:
             return context.scoped_services[self._type]
 
-        instance = self.factory(context, parent_type)
+        instance = self.factory(context, parent_type, self._type)
         context.scoped_services[self._type] = instance
         return instance
 
@@ -412,7 +412,7 @@ def get_annotations_type_provider(
     life_style: ServiceLifeStyle,
     resolver_context: ResolutionContext,
 ):
-    def factory(context, parent_type):
+    def factory(context, parent_type, requested_type):
         instance = concrete_type()
         for name, resolver in resolvers.items():
             setattr(instance, name, resolver(context, parent_type))
@@ -784,10 +784,12 @@ class Services:
 FactoryCallableNoArguments = Callable[[], Any]
 FactoryCallableSingleArgument = Callable[[ActivationScope], Any]
 FactoryCallableTwoArguments = Callable[[ActivationScope, Type], Any]
+FactoryCallableThreeArguments = Callable[[ActivationScope, Type, Type], Any]
 FactoryCallableType = Union[
     FactoryCallableNoArguments,
     FactoryCallableSingleArgument,
     FactoryCallableTwoArguments,
+    FactoryCallableThreeArguments,
 ]
 
 
@@ -797,7 +799,7 @@ class FactoryWrapperNoArgs:
     def __init__(self, factory):
         self.factory = factory
 
-    def __call__(self, context, activating_type):
+    def __call__(self, context, activating_type, parent_type):
         return self.factory()
 
 
@@ -807,8 +809,18 @@ class FactoryWrapperContextArg:
     def __init__(self, factory):
         self.factory = factory
 
-    def __call__(self, context, activating_type):
+    def __call__(self, context, activating_type, parent_type):
         return self.factory(context)
+
+
+class FactoryWrapperPartentArg:
+    __slots__ = ("factory",)
+
+    def __init__(self, factory):
+        self.factory = factory
+
+    def __call__(self, context, activating_type, parent_type):
+        return self.factory(context, activating_type)
 
 
 class Container(ContainerProtocol):
@@ -1097,6 +1109,9 @@ class Container(ContainerProtocol):
             return FactoryWrapperContextArg(factory)
 
         if params_len == 2:
+            return FactoryWrapperPartentArg(factory)
+        
+        if params_len == 3:
             return factory
 
         raise InvalidFactory(handled_type)
