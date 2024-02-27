@@ -203,7 +203,9 @@ class InvalidFactory(DIException):
         super().__init__(
             f"The factory specified for type {class_name(_type)} is not "
             f"valid, it must be a function with either these signatures: "
-            f"def example_factory(context, type): "
+            f"def example_factory(context, activating_type, registered_type): "
+            f"or,"
+            f"def example_factory(context, activating_type): "
             f"or,"
             f"def example_factory(context): "
             f"or,"
