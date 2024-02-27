@@ -412,7 +412,7 @@ def get_annotations_type_provider(
     life_style: ServiceLifeStyle,
     resolver_context: ResolutionContext,
 ):
-    def factory(context, parent_type, requested_type):
+    def factory(context, parent_type, registered_type):
         instance = concrete_type()
         for name, resolver in resolvers.items():
             setattr(instance, name, resolver(context, parent_type))
@@ -799,7 +799,7 @@ class FactoryWrapperNoArgs:
     def __init__(self, factory):
         self.factory = factory
 
-    def __call__(self, context, activating_type, parent_type):
+    def __call__(self, context, activating_type, registered_type):
         return self.factory()
 
 
@@ -809,7 +809,7 @@ class FactoryWrapperContextArg:
     def __init__(self, factory):
         self.factory = factory
 
-    def __call__(self, context, activating_type, parent_type):
+    def __call__(self, context, activating_type, registered_type):
         return self.factory(context)
 
 
@@ -819,7 +819,7 @@ class FactoryWrapperPartentArg:
     def __init__(self, factory):
         self.factory = factory
 
-    def __call__(self, context, activating_type, parent_type):
+    def __call__(self, context, activating_type, registered_type):
         return self.factory(context, activating_type)
 
 
@@ -1110,7 +1110,7 @@ class Container(ContainerProtocol):
 
         if params_len == 2:
             return FactoryWrapperPartentArg(factory)
-        
+
         if params_len == 3:
             return factory
 

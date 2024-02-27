@@ -952,7 +952,7 @@ def cat_factory_with_context_and_activating_type(context, activating_type) -> Ca
 
 
 def cat_factory_with_context_activating_type_and_requested_type(
-        context, activating_type, requested_type
+    context, activating_type, requested_type
 ) -> Cat:
     assert isinstance(context, ActivationScope)
     assert activating_type is Cat
