@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.6] - 2023-12-09 :hammer:
+- Fixes import for Protocols support regardless of Python version (partially
+  broken for Python 3.9), by @fennel-akunesh
+
+## [2.0.5] - 2023-11-25 :lab_coat:
+- Adds support for resolving `Protocol` classes even when they don't define an
+  `__init__` method, by @lucas-labs
+- Fixes bug in service provider build logic causing singletons to be instantiated
+  n times when they are registered after its dependant, by @lucas-labs
+- Changes the "ignore attributes" logic so that if a class variable has already
+  been initialized externally, rodi doesn't attempt to reinitialize it (and to
+  also prevent overriding it if the initialized class variable is also a
+  registered object), by @lucas-labs
+
+## [2.0.4] - 2023-10-28 :dragon:
+- Fixes bug in Singleton implementation: stop singleton provider from recreating
+  objects implementing `__len__`, by [Klavionik](https://github.com/Klavionik).
+- Add Python 3.12 and remove Python 3.7 from the build matrix.
+
+## [2.0.3] - 2023-08-14 :sun_with_face:
+- Checks `scoped_services` before resolving from map when in a scope, by [StummeJ](https://github.com/StummeJ).
+- Allow getting from scope context without needing to provide scope, by [StummeJ](https://github.com/StummeJ).
+
 ## [2.0.2] - 2023-03-31 :flamingo:
 - Ignores `ClassVar` properties when resolving dependencies by class notations.
 - Marks `rodi` 2 as stable.

@@ -20,6 +20,12 @@ from typing import (
     get_type_hints,
 )
 
+if sys.version_info >= (3, 8):  # pragma: no cover
+    try:
+        from typing import _no_init_or_replace_init as _no_init
+    except ImportError:  # pragma: no cover
+        from typing import _no_init
+
 try:
     from typing import Protocol
 except ImportError:  # pragma: no cover
@@ -79,7 +85,7 @@ def _get_obj_locals(obj) -> Optional[Dict[str, Any]]:
 
 
 def class_name(input_type):
-    if input_type in {list, set} and str(
+    if input_type in {list, set} and str(  # noqa: E721
         type(input_type) == "<class 'types.GenericAlias'>"
     ):
         # for Python 3.9 list[T], set[T]
@@ -235,9 +241,9 @@ class ActivationScope:
     def __init__(
         self,
         provider: Optional["Services"] = None,
-        scoped_services: Optional[Dict[Type[T], T]] = None,
+        scoped_services: Optional[Dict[Union[Type[T], str], T]] = None,
     ):
-        self.provider = provider
+        self.provider = provider or Services()
         self.scoped_services = scoped_services or {}
 
     def __enter__(self):
@@ -398,7 +404,7 @@ class SingletonTypeProvider:
         self._instance = None
 
     def __call__(self, context, parent_type):
-        if not self._instance:
+        if self._instance is None:
             self._instance = (
                 self._type(*[fn(context, self._type) for fn in self._args_callbacks])
                 if self._args_callbacks
@@ -477,7 +483,12 @@ class DynamicResolver:
         assert (
             reg is not None
         ), f"A resolver for type {class_name(desired_type)} is not configured"
-        return reg(context)
+        resolver = reg(context)
+
+        # add the resolver to the context, so we can find it
+        # next time we need it
+        context.resolved[desired_type] = resolver
+        return resolver
 
     def _get_resolvers_for_parameters(
         self,
@@ -569,11 +580,23 @@ class DynamicResolver:
         """
         Returns a value indicating whether a class attribute should be ignored for
         dependency resolution, by name and value.
+        It's ignored if it's a ClassVar or if it's already initialized explicitly.
         """
-        try:
-            return value.__origin__ is ClassVar
-        except AttributeError:
-            return False
+        is_classvar = getattr(value, "__origin__", None) is ClassVar
+        is_initialized = getattr(self.concrete_type, key, None) is not None
+
+        return is_classvar or is_initialized
+
+    def _has_default_init(self):
+        init = getattr(self.concrete_type, "__init__", None)
+
+        if init is object.__init__:
+            return True
+
+        if sys.version_info >= (3, 8):  # pragma: no cover
+            if init is _no_init:
+                return True
+        return False
 
     def _resolve_by_annotations(
         self, context: ResolutionContext, annotations: Dict[str, Type]
@@ -601,7 +624,7 @@ class DynamicResolver:
         chain = context.dynamic_chain
         chain.append(concrete_type)
 
-        if getattr(concrete_type, "__init__") is object.__init__:
+        if self._has_default_init():
             annotations = get_type_hints(
                 concrete_type,
                 vars(sys.modules[concrete_type.__module__]),
@@ -715,13 +738,14 @@ class Services:
             scope = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
+        scoped_service = scope.scoped_services.get(desired_type) if scope else None
 
-        if not resolver:
+        if not resolver and not scoped_service:
             if default is not ...:
                 return cast(T, default)
             raise CannotResolveTypeException(desired_type)
 
-        return cast(T, resolver(scope, desired_type))
+        return cast(T, scoped_service or resolver(scope, desired_type))
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
@@ -758,13 +782,15 @@ class Services:
 
         if iscoroutinefunction(method):
 
-            async def async_executor(scoped: Optional[Dict[Type, Any]] = None):
+            async def async_executor(
+                scoped: Optional[Dict[Union[Type, str], Any]] = None
+            ):
                 with ActivationScope(self, scoped) as context:
                     return await method(*[fn(context) for fn in fns])
 
             return async_executor
 
-        def executor(scoped: Optional[Dict[Type, Any]] = None):
+        def executor(scoped: Optional[Dict[Union[Type, str], Any]] = None):
             with ActivationScope(self, scoped) as context:
                 return method(*[fn(context) for fn in fns])
 
@@ -1160,14 +1186,24 @@ class Container(ContainerProtocol):
             _map: Dict[Union[str, Type], Type] = {}
 
             for _type, resolver in self._map.items():
-                # NB: do not call resolver if one was already prepared for the type
-                assert _type not in context.resolved, "_map keys must be unique"
-
                 if isinstance(resolver, DynamicResolver):
                     context.dynamic_chain.clear()
 
-                _map[_type] = resolver(context)
-                context.resolved[_type] = _map[_type]
+                if _type in context.resolved:
+                    # assert _type not in context.resolved, "_map keys must be unique"
+                    # check if its in the map
+                    if _type in _map:
+                        # NB: do not call resolver if one was already prepared for the
+                        # type
+                        raise OverridingServiceException(_type, resolver)
+                    else:
+                        resolved = context.resolved[_type]
+                else:
+                    # add to context so that we don't repeat operations
+                    resolved = resolver(context)
+                    context.resolved[_type] = resolved
+
+                _map[_type] = resolved
 
                 type_name = class_name(_type)
                 if "." not in type_name:

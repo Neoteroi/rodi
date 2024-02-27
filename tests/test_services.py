@@ -2,6 +2,7 @@ import sys
 from abc import ABC
 from dataclasses import dataclass
 from typing import (
+    Any,
     ClassVar,
     Dict,
     Generic,
@@ -505,6 +506,18 @@ def test_scoped_services_use_correct_scope_context_by_default_with_multiple_scop
     assert c is not f
 
 
+def test_scoped_services_works_with_str_keys():
+    container = Container()
+    container.add_singleton("Id", IdGetter)
+    provider = container.build_provider()
+
+    with ActivationScope(provider) as scoped_provider:
+        a = scoped_provider.get("Id")
+    b = provider.get("id")
+
+    assert a is b
+
+
 def test_scoped_services():
     container = Container()
     container._add_exact_scoped(IdGetter)
@@ -520,6 +533,37 @@ def test_scoped_services():
     assert b is c
     assert a is not d
     assert b is not d
+
+
+def test_scoped_service_from_scoped_services():
+    container = Container()
+    provider = container.build_provider()
+
+    scoped_service = IdGetter()
+
+    with ActivationScope(
+        provider,
+        {
+            IdGetter: scoped_service,
+        },
+    ) as context:
+        a = provider.get(IdGetter, context)
+        b = provider.get(IdGetter, default=None)
+    c = provider.get(IdGetter, default=None)
+
+    with ActivationScope(
+        scoped_services={
+            IdGetter: scoped_service,
+        }
+    ) as context:
+        d = provider.get(IdGetter, context)
+        e = provider.get(IdGetter, default=None)
+
+    assert a is scoped_service
+    assert b is None
+    assert c is None
+    assert d is scoped_service
+    assert e is None
 
 
 def test_scoped_services_with_shortcut():
@@ -2484,6 +2528,62 @@ def test_container_iter():
         assert isinstance(value, DynamicResolver)
 
 
+def test_provide_protocol_with_attribute_dependency() -> None:
+    class P(Protocol):
+        def foo(self) -> Any:
+            ...
+
+    class Dependency:
+        pass
+
+    class Impl(P):
+        # attribute dependency
+        dependency: Dependency
+
+        def foo(self) -> Any:
+            pass
+
+    container = Container()
+    container.register(Dependency)
+    container.register(Impl)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
+
+
+def test_provide_protocol_with_init_dependency() -> None:
+    class P(Protocol):
+        def foo(self) -> Any:
+            ...
+
+    class Dependency:
+        pass
+
+    class Impl(P):
+        def __init__(self, dependency: Dependency) -> None:
+            self.dependency = dependency
+
+        def foo(self) -> Any:
+            pass
+
+    container = Container()
+    container.register(Dependency)
+    container.register(Impl)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
+
+
 def test_provide_protocol_generic() -> None:
     T = TypeVar("T")
 
@@ -2506,6 +2606,39 @@ def test_provide_protocol_generic() -> None:
         pytest.fail(str(e))
 
     assert isinstance(resolved, Impl)
+
+
+def test_provide_protocol_generic_with_inner_dependency() -> None:
+    T = TypeVar("T")
+
+    class P(Protocol[T]):
+        def foo(self, t: T) -> T:
+            ...
+
+    class A:
+        ...
+
+    class Dependency:
+        pass
+
+    class Impl(P[A]):
+        dependency: Dependency
+
+        def foo(self, t: A) -> A:
+            return t
+
+    container = Container()
+
+    container.register(Impl)
+    container.register(Dependency)
+
+    try:
+        resolved = container.resolve(Impl)
+    except CannotResolveParameterException as e:
+        pytest.fail(str(e))
+
+    assert isinstance(resolved, Impl)
+    assert isinstance(resolved.dependency, Dependency)
 
 
 def test_ignore_class_var():
@@ -2547,3 +2680,92 @@ def test_ignore_subclass_class_var():
     a = container.resolve(A)
 
     assert a.foo == "foo"
+
+
+def test_singleton_register_order_last():
+    """
+    The registration order of singletons should not matter.
+    Check that singletons are not registered twice when they are registered
+    after their dependents.
+    """
+
+    class Bar:
+        foo: Foo
+
+    class Bar2:
+        foo: Foo
+
+    container = Container()
+    container.register(Bar)
+    container.register(Bar2)
+    container._add_exact_singleton(Foo)
+
+    bar = container.resolve(Bar)
+    bar2 = container.resolve(Bar2)
+    foo = container.resolve(Foo)
+
+    # check that singletons are always the same instance
+    assert bar.foo is bar2.foo is foo
+
+
+def test_singleton_register_order_first():
+    """
+    The registration order of singletons should not matter.
+    Check that singletons are not registered twice when they are registered
+    before their dependents.
+    """
+
+    class Bar:
+        foo: Foo
+
+    class Bar2:
+        foo: Foo
+
+    container = Container()
+    container._add_exact_singleton(Foo)
+    container.register(Bar)
+    container.register(Bar2)
+
+    bar = container.resolve(Bar)
+    bar2 = container.resolve(Bar2)
+    foo = container.resolve(Foo)
+
+    # check that singletons are always the same instance
+    assert bar.foo is bar2.foo is foo
+
+
+def test_ignore_class_variable_if_already_initialized():
+    """
+    if a class variable is already initialized, it should not be overridden by
+    resolving a new instance nor fail if rodi can't resolve it.
+    """
+
+    foo_instance = Foo()
+
+    class A:
+        foo: Foo = foo_instance
+
+    class B:
+        example: ClassVar[str] = "example"
+        dependency: A
+
+    container = Container()
+
+    container.register(A)
+    container.register(B)
+    container._add_exact_singleton(Foo)
+
+    b = container.resolve(B)
+    a = container.resolve(A)
+    foo = container.resolve(Foo)
+
+    assert isinstance(a, A)
+    assert isinstance(a.foo, Foo)
+    assert foo_instance is a.foo
+
+    assert isinstance(b, B)
+    assert b.example == "example"
+    assert b.dependency.foo is foo_instance
+
+    # check that is not being overridden by resolving a new instance
+    assert foo is not a.foo
