@@ -2530,8 +2530,7 @@ def test_container_iter():
 
 def test_provide_protocol_with_attribute_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2558,8 +2557,7 @@ def test_provide_protocol_with_attribute_dependency() -> None:
 
 def test_provide_protocol_with_init_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2612,11 +2610,9 @@ def test_provide_protocol_generic_with_inner_dependency() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Dependency:
         pass
