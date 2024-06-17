@@ -25,13 +25,13 @@ jobs:
         python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
 
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 9
           submodules: false
 
       - name: Use Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -56,7 +56,7 @@ jobs:
           black --check tests 2>&1
 
       - name: Upload pytest test results
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: pytest-results-${{ matrix.python-version }}
           path: junit/pytest-results-${{ matrix.python-version }}.xml
@@ -88,13 +88,13 @@ jobs:
     if: github.event_name == 'release'
     steps:
       - name: Download a distribution artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v4
         with:
           name: dist
           path: dist
 
       - name: Use Python 3.11
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
