@@ -56,7 +56,10 @@ class ContainerProtocol(Protocol):
 AliasesTypeHint = Dict[str, Type]
 
 
-def inject(globalsns=None, localns=None) -> Callable[..., Any]:
+def inject(
+    globalsns: Optional[Dict[str, Any]] = None, 
+    localns: Optional[Dict[str, Any]] = None,
+) -> Callable[[T], T]:
     """
     Marks a class or a function as injected. This method is only necessary if the class
     uses locals and the user uses Python >= 3.10, to bind the function's locals to the
