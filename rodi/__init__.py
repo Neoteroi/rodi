@@ -18,6 +18,7 @@ from typing import (
     Union,
     cast,
     get_type_hints,
+    overload,
 )
 
 if sys.version_info >= (3, 8):  # pragma: no cover
@@ -41,10 +42,17 @@ class ContainerProtocol(Protocol):
     and tell if a type is configured.
     """
 
-    def register(self, obj_type: Union[Type, str], *args, **kwargs):
+    def register(self, obj_type: Union[Type, str], *args, **kwargs) -> None:
         """Registers a type in the container, with optional arguments."""
 
-    def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> T:
+    @overload
+    def resolve(self, obj_type: Type[T], *args, **kwargs) -> T: ...
+
+    @overload
+    def resolve(self, obj_type: str, *args, **kwargs) -> Any: ...
+
+    @overload
+    def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> Any:
         """Activates an instance of the given type, with optional arguments."""
 
     def __contains__(self, item) -> bool:
@@ -901,13 +909,31 @@ class Container(ContainerProtocol):
             self.add_transient(obj_type, sub_type)
         return self
 
+    @overload
+    def resolve(
+        self,
+        obj_type: Type[T],
+        scope: Any = None,
+        *args,
+        **kwargs,
+    ) -> T: ...
+
+    @overload
+    def resolve(
+        self,
+        obj_type: str,
+        scope: Any = None,
+        *args,
+        **kwargs,
+    ) -> Any: ...
+
     def resolve(
         self,
         obj_type: Union[Type[T], str],
         scope: Any = None,
         *args,
         **kwargs,
-    ) -> T:
+    ) -> Any:
         """
         Resolves a service by type, obtaining an instance of that type.
         """
