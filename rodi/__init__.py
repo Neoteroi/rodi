@@ -746,6 +746,13 @@ class Services:
             scope = ActivationScope(self)
 
         resolver = self._map.get(desired_type)
+        if not resolver:
+            cls_name = class_name(desired_type)
+            resolver = (
+                self._map.get(cls_name)
+                or self._map.get(cls_name.lower())
+                or self._map.get(to_standard_param_name(cls_name))
+            )
         scoped_service = scope.scoped_services.get(desired_type) if scope else None
 
         if not resolver and not scoped_service:
