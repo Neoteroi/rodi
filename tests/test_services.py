@@ -713,6 +713,9 @@ def test_alias_dep_resolving():
     assert isinstance(u, UsingAliasByType)
     assert isinstance(u.example, DerivedClass)
 
+    b = provider.get(BaseClass)
+    assert isinstance(b, DerivedClass)
+
 
 def test_get_service_by_name_or_alias():
     container = arrange_cats_example()
