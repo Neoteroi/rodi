@@ -687,6 +687,33 @@ def test_additional_alias():
     assert isinstance(u.cats_controller.cat_request_handler, GetCatRequestHandler)
 
 
+def test_alias_dep_resolving():
+    container = arrange_cats_example()
+
+    class BaseClass:
+        pass
+
+    class DerivedClass(BaseClass):
+        pass
+
+    class UsingAliasByType:
+        def __init__(self, example: BaseClass):
+            self.example = example
+
+    def resolve_derived_class(_) -> DerivedClass:
+        return DerivedClass()
+
+    container.add_scoped_by_factory(resolve_derived_class, DerivedClass)
+    container.add_alias("BaseClass", DerivedClass)
+    container.add_scoped(UsingAliasByType)
+
+    provider = container.build_provider()
+    u = provider.get(UsingAliasByType)
+
+    assert isinstance(u, UsingAliasByType)
+    assert isinstance(u.example, DerivedClass)
+
+
 def test_get_service_by_name_or_alias():
     container = arrange_cats_example()
     container.add_alias("k", CatsController)
@@ -2323,7 +2350,7 @@ def test_iterables_annotations_transient_factory(annotation, value):
 
 def test_factory_without_locals_raises():
     def factory_without_context() -> None:
-        ...
+        pass
 
     with pytest.raises(FactoryMissingContextException):
         _get_factory_annotations_or_throw(factory_without_context)
@@ -2332,7 +2359,7 @@ def test_factory_without_locals_raises():
 def test_factory_with_locals_get_annotations():
     @inject()
     def factory_without_context() -> "Cat":
-        ...
+        pass
 
     annotations = _get_factory_annotations_or_throw(factory_without_context)
 
@@ -2350,20 +2377,20 @@ def test_deps_github_scenario():
     """
 
     class HTTPClient:
-        ...
+        pass
 
     class CommentsService:
-        ...
+        pass
 
     class ChecksService:
-        ...
+        pass
 
     class CLAHandler:
         comments_service: CommentsService
         checks_service: ChecksService
 
     class GitHubSettings:
-        ...
+        pass
 
     class GitHubAuthHandler:
         settings: GitHubSettings
@@ -2478,7 +2505,7 @@ def test_container_iter():
 def test_provide_protocol_with_attribute_dependency() -> None:
     class P(Protocol):
         def foo(self) -> Any:
-            ...
+            pass
 
     class Dependency:
         pass
@@ -2506,7 +2533,7 @@ def test_provide_protocol_with_attribute_dependency() -> None:
 def test_provide_protocol_with_init_dependency() -> None:
     class P(Protocol):
         def foo(self) -> Any:
-            ...
+            pass
 
     class Dependency:
         pass
@@ -2536,10 +2563,10 @@ def test_provide_protocol_generic() -> None:
 
     class P(Protocol[T]):
         def foo(self, t: T) -> T:
-            ...
+            pass
 
     class A:
-        ...
+        pass
 
     class Impl(P[A]):
         def foo(self, t: A) -> A:
@@ -2562,10 +2589,10 @@ def test_provide_protocol_generic_with_inner_dependency() -> None:
 
     class P(Protocol[T]):
         def foo(self, t: T) -> T:
-            ...
+            pass
 
     class A:
-        ...
+        pass
 
     class Dependency:
         pass
