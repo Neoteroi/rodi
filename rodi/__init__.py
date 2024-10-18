@@ -511,7 +511,7 @@ class DynamicResolver:
                 # but at least Optional could be supported in the future
                 raise UnsupportedUnionTypeException(param_name, concrete_type)
 
-            if param_type is _empty:
+            if param_type is _empty or param_type not in services._map:
                 if services.strict:
                     raise CannotResolveParameterException(param_name, concrete_type)
 
@@ -522,6 +522,14 @@ class DynamicResolver:
                     param_type = exact_alias
                 else:
                     aliases = services._aliases[param_name]
+
+                    if not aliases:
+                        cls_name = class_name(param_type)
+                        aliases = (
+                            services._aliases[cls_name]
+                            or services._aliases[cls_name.lower()]
+                            or services._aliases[to_standard_param_name(cls_name)]
+                        )
 
                     if aliases:
                         assert (
