@@ -1,3 +1,4 @@
+import contextvars
 import inspect
 import re
 import sys
@@ -259,6 +260,8 @@ class ActivationScope:
         *,
         default: Optional[Any] = ...,
     ) -> T:
+        if self.provider is None:
+            raise TypeError("This scope is disposed.")
         return self.provider.get(desired_type, scope or self, default=default)
 
     def dispose(self):
@@ -268,6 +271,48 @@ class ActivationScope:
         if self.scoped_services:
             self.scoped_services.clear()
             self.scoped_services = None
+
+
+class TrackingActivationScope(ActivationScope):
+    """
+    This is an experimental class to support nested scopes transparently.
+    To use it, create a container including the `scope_cls` parameter:
+    `Container(scope_cls=TrackingActivationScope)`.
+    """
+
+    _active_scopes = contextvars.ContextVar("active_scopes", default=[])
+
+    __slots__ = ("scoped_services", "provider", "parent_scope")
+
+    def __init__(self, provider=None, scoped_services=None):
+        # Get the current stack of active scopes
+        stack = self._active_scopes.get()
+
+        # Detect the parent scope if it exists
+        self.parent_scope = stack[-1] if stack else None
+
+        # Initialize scoped services
+        scoped_services = scoped_services or {}
+        if self.parent_scope:
+            scoped_services.update(self.parent_scope.scoped_services)
+
+        super().__init__(provider, scoped_services)
+
+    def __enter__(self):
+        # Push this scope onto the stack
+        stack = self._active_scopes.get()
+        self._active_scopes.set(stack + [self])
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        # Pop this scope from the stack
+        stack = self._active_scopes.get()
+        self._active_scopes.set(stack[:-1])
+        self.dispose()
+
+    def dispose(self):
+        if self.provider:
+            self.provider = None
 
 
 class ResolutionContext:
@@ -679,13 +724,18 @@ class Services:
     Provides methods to activate instances of classes, by cached activator functions.
     """
 
-    __slots__ = ("_map", "_executors")
+    __slots__ = ("_map", "_executors", "_scope_cls")
 
-    def __init__(self, services_map=None):
+    def __init__(
+        self,
+        services_map=None,
+        scope_cls: Optional[Type[ActivationScope]] = None,
+    ):
         if services_map is None:
             services_map = {}
         self._map = services_map
         self._executors = {}
+        self._scope_cls = scope_cls or ActivationScope
 
     def __contains__(self, item):
         return item in self._map
@@ -695,6 +745,11 @@ class Services:
 
     def __setitem__(self, key, value):
         self.set(key, value)
+
+    def create_scope(
+        self, scoped: Optional[Dict[Union[Type, str], Any]] = None
+    ) -> ActivationScope:
+        return self._scope_cls(self, scoped)
 
     def set(self, new_type: Union[Type, str], value: Any):
         """
@@ -733,7 +788,7 @@ class Services:
         :return: an instance of the desired type
         """
         if scope is None:
-            scope = ActivationScope(self)
+            scope = self.create_scope()
 
         resolver = self._map.get(desired_type)
         scoped_service = scope.scoped_services.get(desired_type) if scope else None
@@ -781,15 +836,15 @@ class Services:
         if iscoroutinefunction(method):
 
             async def async_executor(
-                scoped: Optional[Dict[Union[Type, str], Any]] = None
+                scoped: Optional[Dict[Union[Type, str], Any]] = None,
             ):
-                with ActivationScope(self, scoped) as context:
+                with self.create_scope(scoped) as context:
                     return await method(*[fn(context) for fn in fns])
 
             return async_executor
 
         def executor(scoped: Optional[Dict[Union[Type, str], Any]] = None):
-            with ActivationScope(self, scoped) as context:
+            with self.create_scope(scoped) as context:
                 return method(*[fn(context) for fn in fns])
 
         return executor
@@ -842,13 +897,19 @@ class Container(ContainerProtocol):
     Configuration class for a collection of services.
     """
 
-    __slots__ = ("_map", "_aliases", "_exact_aliases", "strict")
+    __slots__ = ("_map", "_aliases", "_exact_aliases", "_scope_cls", "strict")
 
-    def __init__(self, *, strict: bool = False):
+    def __init__(
+        self,
+        *,
+        strict: bool = False,
+        scope_cls: Optional[Type[ActivationScope]] = None,
+    ):
         self._map: Dict[Type, Callable] = {}
         self._aliases: DefaultDict[str, Set[Type]] = defaultdict(set)
         self._exact_aliases: Dict[str, Type] = {}
         self._provider: Optional[Services] = None
+        self._scope_cls = scope_cls
         self.strict = strict
 
     @property
@@ -1205,7 +1266,7 @@ class Container(ContainerProtocol):
                 for name, _type in self._exact_aliases.items():
                     _map[name] = self._get_alias_target_type(name, _map, _type)
 
-        return Services(_map)
+        return Services(_map, scope_cls=self._scope_cls)
 
     @staticmethod
     def _get_alias_target_type(name, _map, _type):
