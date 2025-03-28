@@ -21,8 +21,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        python-version: [3.8, 3.9, "3.10", "3.11", "3.12"]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
 
     steps:
       - uses: actions/checkout@v1
@@ -69,18 +70,18 @@ jobs:
 
       - name: Install distribution dependencies
         run: pip install --upgrade build
-        if: matrix.python-version == 3.11
+        if: matrix.python-version == 3.12
 
       - name: Create distribution package
         run: python -m build
-        if: matrix.python-version == 3.11
+        if: matrix.python-version == 3.12
 
       - name: Upload distribution package
         uses: actions/upload-artifact@master
         with:
           name: dist
           path: dist
-        if: matrix.python-version == 3.11
+        if: matrix.python-version == 3.12
 
   publish:
     runs-on: ubuntu-latest
@@ -93,10 +94,10 @@ jobs:
           name: dist
           path: dist
 
-      - name: Use Python 3.11
+      - name: Use Python 3.12
         uses: actions/setup-python@v1
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |

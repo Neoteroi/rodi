@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.7] - 2025-03-28
+
+- Add the possibility to specify the `ActivationScope` class when instantiating
+  the `Container` or the `Services` object. This class will be used when
+  creating scopes. For the issue #55.
+- Add an **experimental** class, `TrackingActivationScope` to support nested
+  scopes transparently, using `contextvars.ContextVar`. For more context, see
+  the tests `test_nested_scope_1`, `test_nested_scope_2`,
+  `test_nested_scope_async_1`. For the issue #55.
+- Raise a `TypeError` if trying to obtain a service from a disposed scope.
+- Remove Python 3.8 from the build matrix, add Python 3.13.
+- Handle setuptools warning: _SetuptoolsDeprecationWarning: License classifiers are deprecated_.
+
 ## [2.0.6] - 2023-12-09 :hammer:
 - Fixes import for Protocols support regardless of Python version (partially
   broken for Python 3.9), by @fennel-akunesh
