@@ -3,6 +3,7 @@
 [![versions](https://img.shields.io/pypi/pyversions/rodi.svg)](https://github.com/Neoteroi/rodi)
 [![codecov](https://codecov.io/gh/Neoteroi/rodi/branch/main/graph/badge.svg?token=VzAnusWIZt)](https://codecov.io/gh/Neoteroi/rodi)
 [![license](https://img.shields.io/github/license/Neoteroi/rodi.svg)](https://github.com/Neoteroi/rodi/blob/main/LICENSE)
+[![documentation](https://img.shields.io/badge/📖-docs-purple)](https://www.neoteroi.dev/rodi/)
 
 # Implementation of dependency injection for Python 3
 
@@ -23,6 +24,10 @@ Core](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injec
 [Using dependency injection in a .Net Core console
 application](https://andrewlock.net/using-dependency-injection-in-a-net-core-console-application/)_).
 The `ContainerProtocol` for v2 is inspired by [punq](https://github.com/bobthemighty/punq).
+
+## Documentation
+
+Rodi is documented here: [https://www.neoteroi.dev/rodi/](https://www.neoteroi.dev/rodi/).
 
 ## Installation
 
@@ -86,7 +91,3 @@ relying on the HTTP Request object being a service registered in your container.
 `rodi` is used in the [BlackSheep](https://www.neoteroi.dev/blacksheep/)
 web framework to implement [dependency injection](https://www.neoteroi.dev/blacksheep/dependency-injection/) for
 request handlers.
-
-# Documentation
-
-Under construction. 🚧

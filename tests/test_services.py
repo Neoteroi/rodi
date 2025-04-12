@@ -10,6 +10,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    Optional,
     Sequence,
     Tuple,
     Type,
@@ -38,7 +39,6 @@ from rodi import (
     ServiceLifeStyle,
     Services,
     TrackingActivationScope,
-    UnsupportedUnionTypeException,
     _get_factory_annotations_or_throw,
     inject,
     to_standard_param_name,
@@ -321,15 +321,13 @@ def test_add_instance_with_declared_type():
     assert isinstance(icircle, Circle)
 
 
-def test_raises_for_optional_parameter():
+def test_optional_parameter():
     container = Container()
-    container._add_exact_transient(Foo)
-    container._add_exact_transient(TypeWithOptional)
+    container.add_transient(Optional[Foo], Foo)  # type: ignore
+    container.add_transient(TypeWithOptional)
 
-    with pytest.raises(UnsupportedUnionTypeException) as context:
-        container.build_provider()
-
-    assert "foo" in str(context.value)
+    a = container.resolve(TypeWithOptional)
+    assert isinstance(a.foo, Foo)
 
 
 def test_raises_for_nested_circular_dependency():
