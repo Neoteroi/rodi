@@ -131,18 +131,6 @@ class CannotResolveParameterException(DIException):
         )
 
 
-class UnsupportedUnionTypeException(DIException):
-    """Exception risen when a parameter type is defined
-    as Optional or Union of several types."""
-
-    def __init__(self, param_name, desired_type):
-        super().__init__(
-            f"Union or Optional type declaration is not supported. "
-            f"Cannot resolve parameter '{param_name}' "
-            f"when resolving '{class_name(desired_type)}'"
-        )
-
-
 class OverridingServiceException(DIException):
     """
     Exception risen when registering a service
@@ -547,12 +535,6 @@ class DynamicResolver:
                 continue
 
             param_type = param.annotation
-
-            if hasattr(param_type, "__origin__") and param_type.__origin__ is Union:
-                # NB: we could cycle through possible types using: param_type.__args__
-                # Right now Union and Optional types resolution is not implemented,
-                # but at least Optional could be supported in the future
-                raise UnsupportedUnionTypeException(param_name, concrete_type)
 
             if param_type is _empty:
                 if services.strict:

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.8] - 2025-04-12
+
+- Add the link to the [documentation](https://www.neoteroi.dev/rodi/).
+- Remove the `UnsupportedUnionTypeException` as `Rodi` supports union types,
+  they only require proper handling.
+
 ## [2.0.7] - 2025-03-28
 
 - Add the possibility to specify the `ActivationScope` class when instantiating
