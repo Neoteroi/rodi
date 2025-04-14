@@ -32,6 +32,11 @@ try:
 except ImportError:  # pragma: no cover
     from typing_extensions import Protocol
 
+try:
+    from typing import Self
+except ImportError:  # pragma: no cover
+    from typing_extensions import Self
+
 
 T = TypeVar("T")
 
@@ -42,7 +47,7 @@ class ContainerProtocol(Protocol):
     and tell if a type is configured.
     """
 
-    def register(self, obj_type: Union[Type, str], *args, **kwargs):
+    def register(self, obj_type: Union[Type, str], *args, **kwargs) -> Self:
         """Registers a type in the container, with optional arguments."""
 
     def resolve(self, obj_type: Union[Type[T], str], *args, **kwargs) -> T:
