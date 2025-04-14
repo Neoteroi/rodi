@@ -85,6 +85,10 @@ def _get_obj_locals(obj) -> Optional[Dict[str, Any]]:
     return getattr(obj, "_locals", None)
 
 
+def _get_obj_globals(obj) -> Dict[str, Any]:
+    return getattr(obj, "_globals", {})
+
+
 def class_name(input_type):
     if input_type in {list, set} and str(  # noqa: E721
         type(input_type) == "<class 'types.GenericAlias'>"
@@ -571,9 +575,11 @@ class DynamicResolver:
 
         if sys.version_info >= (3, 10):  # pragma: no cover
             # Python 3.10
+            globalns = vars(sys.modules[self.concrete_type.__module__])
+            globalns.update(_get_obj_globals(self.concrete_type))
             annotations = get_type_hints(
                 self.concrete_type.__init__,
-                vars(sys.modules[self.concrete_type.__module__]),
+                globalns,
                 _get_obj_locals(self.concrete_type),
             )
             for key, value in params.items():
@@ -650,9 +656,11 @@ class DynamicResolver:
         chain.append(concrete_type)
 
         if self._has_default_init():
+            globalns = vars(sys.modules[concrete_type.__module__])
+            globalns.update(_get_obj_locals(concrete_type))
             annotations = get_type_hints(
                 concrete_type,
-                vars(sys.modules[concrete_type.__module__]),
+                globalns,
                 _get_obj_locals(concrete_type),
             )
 
