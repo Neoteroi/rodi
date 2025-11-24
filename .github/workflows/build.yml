@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
       - uses: actions/checkout@v1
@@ -69,25 +69,20 @@ jobs:
           path: junit/pytest-results-${{ matrix.python-version }}.xml
         if: always()
 
-      - name: Codecov
-        run: |
-          bash <(sed -i 's/filename=\"/filename=\"rodi\//g' coverage.xml)
-          bash <(curl -s https://codecov.io/bash)
-
       - name: Install distribution dependencies
         run: pip install --upgrade build
-        if: matrix.python-version == 3.12
+        if: matrix.python-version == 3.13
 
       - name: Create distribution package
         run: python -m build
-        if: matrix.python-version == 3.12
+        if: matrix.python-version == 3.13
 
       - name: Upload distribution package
         uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist
-        if: matrix.python-version == 3.12
+        if: matrix.python-version == 3.13
 
   publish:
     runs-on: ubuntu-latest
@@ -100,10 +95,10 @@ jobs:
           name: dist
           path: dist
 
-      - name: Use Python 3.12
+      - name: Use Python 3.13
         uses: actions/setup-python@v1
         with:
-          python-version: '3.12'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
