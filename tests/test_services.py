@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from abc import ABC
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from typing import (
     Iterable,
     List,
     Mapping,
+    Optional,
     Sequence,
     Tuple,
     Type,
@@ -36,7 +38,7 @@ from rodi import (
     OverridingServiceException,
     ServiceLifeStyle,
     Services,
-    UnsupportedUnionTypeException,
+    TrackingActivationScope,
     _get_factory_annotations_or_throw,
     inject,
     to_standard_param_name,
@@ -319,15 +321,13 @@ def test_add_instance_with_declared_type():
     assert isinstance(icircle, Circle)
 
 
-def test_raises_for_optional_parameter():
+def test_optional_parameter():
     container = Container()
-    container._add_exact_transient(Foo)
-    container._add_exact_transient(TypeWithOptional)
+    container.add_transient(Optional[Foo], Foo)  # type: ignore
+    container.add_transient(TypeWithOptional)
 
-    with pytest.raises(UnsupportedUnionTypeException) as context:
-        container.build_provider()
-
-    assert "foo" in str(context.value)
+    a = container.resolve(TypeWithOptional)
+    assert isinstance(a.foo, Foo)
 
 
 def test_raises_for_nested_circular_dependency():
@@ -2322,8 +2322,7 @@ def test_iterables_annotations_transient_factory(annotation, value):
 
 
 def test_factory_without_locals_raises():
-    def factory_without_context() -> None:
-        ...
+    def factory_without_context() -> None: ...
 
     with pytest.raises(FactoryMissingContextException):
         _get_factory_annotations_or_throw(factory_without_context)
@@ -2331,8 +2330,7 @@ def test_factory_without_locals_raises():
 
 def test_factory_with_locals_get_annotations():
     @inject()
-    def factory_without_context() -> "Cat":
-        ...
+    def factory_without_context() -> "Cat": ...
 
     annotations = _get_factory_annotations_or_throw(factory_without_context)
 
@@ -2349,21 +2347,17 @@ def test_deps_github_scenario():
                                               └── HTTPClient
     """
 
-    class HTTPClient:
-        ...
+    class HTTPClient: ...
 
-    class CommentsService:
-        ...
+    class CommentsService: ...
 
-    class ChecksService:
-        ...
+    class ChecksService: ...
 
     class CLAHandler:
         comments_service: CommentsService
         checks_service: ChecksService
 
-    class GitHubSettings:
-        ...
+    class GitHubSettings: ...
 
     class GitHubAuthHandler:
         settings: GitHubSettings
@@ -2477,8 +2471,7 @@ def test_container_iter():
 
 def test_provide_protocol_with_attribute_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2505,8 +2498,7 @@ def test_provide_protocol_with_attribute_dependency() -> None:
 
 def test_provide_protocol_with_init_dependency() -> None:
     class P(Protocol):
-        def foo(self) -> Any:
-            ...
+        def foo(self) -> Any: ...
 
     class Dependency:
         pass
@@ -2535,11 +2527,9 @@ def test_provide_protocol_generic() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Impl(P[A]):
         def foo(self, t: A) -> A:
@@ -2561,11 +2551,9 @@ def test_provide_protocol_generic_with_inner_dependency() -> None:
     T = TypeVar("T")
 
     class P(Protocol[T]):
-        def foo(self, t: T) -> T:
-            ...
+        def foo(self, t: T) -> T: ...
 
-    class A:
-        ...
+    class A: ...
 
     class Dependency:
         pass
@@ -2718,3 +2706,57 @@ def test_ignore_class_variable_if_already_initialized():
 
     # check that is not being overridden by resolving a new instance
     assert foo is not a.foo
+
+
+def test_nested_scope_1():
+    container = Container(scope_cls=TrackingActivationScope)
+    container.add_scoped(Ok)
+    provider = container.build_provider()
+
+    with provider.create_scope() as context_1:
+        a = provider.get(Ok, context_1)
+
+        with provider.create_scope() as context_2:
+            b = provider.get(Ok, context_2)
+
+        assert a is b
+
+
+def test_nested_scope_2():
+    container = Container(scope_cls=TrackingActivationScope)
+    container.add_scoped(Ok)
+    provider = container.build_provider()
+
+    with provider.create_scope():
+        with provider.create_scope() as context:
+            a = provider.get(Ok, context)
+
+        with provider.create_scope() as context:
+            b = provider.get(Ok, context)
+
+        assert a is not b
+
+
+async def nested_scope_async():
+    container = Container(scope_cls=TrackingActivationScope)
+    container.add_scoped(Ok)
+    provider = container.build_provider()
+
+    with provider.create_scope() as context_1:
+        a = provider.get(Ok, context_1)
+
+        await asyncio.sleep(0.01)
+        with provider.create_scope() as context_2:
+            b = provider.get(Ok, context_2)
+
+        assert a is b
+
+
+@pytest.mark.asyncio
+async def test_nested_scope_async_1():
+    await asyncio.gather(
+        nested_scope_async(),
+        nested_scope_async(),
+        nested_scope_async(),
+        nested_scope_async(),
+    )

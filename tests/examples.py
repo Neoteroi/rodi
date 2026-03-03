@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 
-# domain object:
 class Cat:
     def __init__(self, name: str):
         self.name = name
