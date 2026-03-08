@@ -2153,15 +2153,15 @@ def test_mapping_generic_alias():
 def test_dict_generic_alias():
     container = Container()
 
-    def mapping_int_factory() -> Dict[int, int]:
+    def mapping_int_factory() -> dict[int, int]:
         return {1: 1, 2: 2, 3: 3}
 
-    def mapping_str_factory() -> Dict[str, int]:
+    def mapping_str_factory() -> dict[str, int]:
         return {"a": 1, "b": 2, "c": 3}
 
     class C:
-        a: Dict[int, int]
-        b: Dict[str, int]
+        a: dict[int, int]
+        b: dict[str, int]
 
     container.add_scoped_by_factory(mapping_int_factory)
     container.add_scoped_by_factory(mapping_str_factory)
