@@ -65,6 +65,13 @@ from tests.examples import (
     Jang,
     Jing,
     Ko,
+    MixedAnnotationOverlapsInit,
+    MixedDep1,
+    MixedDep2,
+    MixedNoInitArgs,
+    MixedScoped,
+    MixedSingleton,
+    MixedWithInitArgs,
     Ok,
     P,
     PrecedenceOfTypeHintsOverNames,
@@ -2808,3 +2815,101 @@ def test_inject_globalsns_honoured_for_init_resolution():
 
     instance = provider.get(Service)
     assert isinstance(instance.dep, LocalDep)
+
+
+# Tests for mixed __init__ + class annotation injection (issue #43)
+
+
+def test_mixed_no_init_args_transient():
+    """
+    Class with a custom no-arg __init__ AND class-level annotations:
+    annotations should be injected via setattr after instantiation.
+    """
+    container = Container()
+    container.add_transient(MixedDep1)
+    container.add_transient(MixedNoInitArgs)
+    provider = container.build_provider()
+
+    instance = provider.get(MixedNoInitArgs)
+    assert instance is not None
+    assert isinstance(instance.injected, MixedDep1)
+    assert instance.value == "hello"
+
+
+def test_mixed_no_init_args_new_instance_each_time():
+    """Transient mixed services produce a new instance on each resolve."""
+    container = Container()
+    container.add_transient(MixedDep1)
+    container.add_transient(MixedNoInitArgs)
+    provider = container.build_provider()
+
+    a = provider.get(MixedNoInitArgs)
+    b = provider.get(MixedNoInitArgs)
+    assert a is not b
+
+
+def test_mixed_with_init_args_transient():
+    """
+    Class with a custom __init__ that has injectable params AND class-level annotations:
+    both should be injected.
+    """
+    container = Container()
+    container.add_transient(MixedDep1)
+    container.add_transient(MixedDep2)
+    container.add_transient(MixedWithInitArgs)
+    provider = container.build_provider()
+
+    instance = provider.get(MixedWithInitArgs)
+    assert instance is not None
+    assert isinstance(instance.dep1, MixedDep1)
+    assert isinstance(instance.extra, MixedDep2)
+    assert instance.value == "hello"
+
+
+def test_mixed_with_init_args_singleton():
+    """Singleton mixed service: same instance returned each time."""
+    container = Container()
+    container.add_singleton(MixedDep1)
+    container.add_singleton(MixedDep2)
+    container.add_singleton(MixedSingleton)
+    provider = container.build_provider()
+
+    a = provider.get(MixedSingleton)
+    b = provider.get(MixedSingleton)
+    assert a is b
+    assert isinstance(a.dep1, MixedDep1)
+    assert isinstance(a.dep2, MixedDep2)
+
+
+def test_mixed_with_init_args_scoped():
+    """Scoped mixed service: same instance within a scope, new across scopes."""
+    container = Container()
+    container.add_scoped(MixedDep1)
+    container.add_scoped(MixedDep2)
+    container.add_scoped(MixedScoped)
+    provider = container.build_provider()
+
+    with provider.create_scope() as scope1:
+        a = provider.get(MixedScoped, scope1)
+        b = provider.get(MixedScoped, scope1)
+        assert a is b
+        assert isinstance(a.dep1, MixedDep1)
+        assert isinstance(a.dep2, MixedDep2)
+
+    with provider.create_scope() as scope2:
+        c = provider.get(MixedScoped, scope2)
+        assert c is not a
+
+
+def test_mixed_annotation_overlaps_init_param():
+    """
+    When a class annotation has the same name as an __init__ parameter,
+    the annotation is NOT double-injected — init handles it, setattr is skipped.
+    """
+    container = Container()
+    container.add_transient(MixedDep1)
+    container.add_transient(MixedAnnotationOverlapsInit)
+    provider = container.build_provider()
+
+    instance = provider.get(MixedAnnotationOverlapsInit)
+    assert isinstance(instance.dep1, MixedDep1)
