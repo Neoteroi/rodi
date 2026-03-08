@@ -740,7 +740,10 @@ class DynamicResolver:
         if concrete_type.__annotations__:
             class_annotations = get_type_hints(
                 concrete_type,
-                {**dict(vars(sys.modules[concrete_type.__module__])), **_get_obj_globals(concrete_type)},
+                {
+                    **dict(vars(sys.modules[concrete_type.__module__])),
+                    **_get_obj_globals(concrete_type),
+                },
                 _get_obj_locals(concrete_type),
             )
             if class_annotations:
