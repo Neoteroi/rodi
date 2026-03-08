@@ -683,9 +683,11 @@ class DynamicResolver:
         }
 
         if sys.version_info >= (3, 10):  # pragma: no cover
+            globalns = dict(vars(sys.modules[self.concrete_type.__module__]))
+            globalns.update(_get_obj_globals(self.concrete_type))
             annotations = get_type_hints(
                 self.concrete_type.__init__,
-                vars(sys.modules[self.concrete_type.__module__]),
+                globalns,
                 _get_obj_locals(self.concrete_type),
             )
             for key, value in params.items():
@@ -736,7 +738,7 @@ class DynamicResolver:
         # properties
         class_annotations = get_type_hints(
             concrete_type,
-            vars(sys.modules[concrete_type.__module__]),
+            {**dict(vars(sys.modules[concrete_type.__module__])), **_get_obj_globals(concrete_type)},
             _get_obj_locals(concrete_type),
         )
         if class_annotations:
