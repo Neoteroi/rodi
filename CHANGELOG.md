@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.1.0] - 2025-11-24 :notes:
 
+- Improve `resolve()` typing, by @sobolevn.
+- Use `Self` type for Container, by @sobolevn.
+- Improve typing of `inject`, by @sobolevn.
 - Drop support for Python <= 3.10.
 - Add Python 3.14 to the build matrix and to classifiers.
 - Remove Codecov from GitHub Workflow and from README.
