@@ -735,27 +735,30 @@ class DynamicResolver:
             )(context)
 
         # Custom __init__: also check for class-level annotations to inject as
-        # properties
-        class_annotations = get_type_hints(
-            concrete_type,
-            {**dict(vars(sys.modules[concrete_type.__module__])), **_get_obj_globals(concrete_type)},
-            _get_obj_locals(concrete_type),
-        )
-        if class_annotations:
-            sig = Signature.from_callable(concrete_type.__init__)
-            init_param_names = set(sig.parameters.keys()) - {"self"}
-            extra_annotations = {
-                k: v
-                for k, v in class_annotations.items()
-                if k not in init_param_names and not self._ignore_class_attribute(k, v)
-            }
-            if extra_annotations:
-                try:
-                    return self._resolve_by_init_and_annotations(
-                        context, extra_annotations
-                    )
-                except RecursionError:
-                    raise CircularDependencyException(chain[0], concrete_type)
+        # properties. The cheap __annotations__ check avoids the expensive
+        # get_type_hints call for the common case of no class-level annotations.
+        if concrete_type.__annotations__:
+            class_annotations = get_type_hints(
+                concrete_type,
+                {**dict(vars(sys.modules[concrete_type.__module__])), **_get_obj_globals(concrete_type)},
+                _get_obj_locals(concrete_type),
+            )
+            if class_annotations:
+                sig = Signature.from_callable(concrete_type.__init__)
+                init_param_names = set(sig.parameters.keys()) - {"self"}
+                extra_annotations = {
+                    k: v
+                    for k, v in class_annotations.items()
+                    if k not in init_param_names
+                    and not self._ignore_class_attribute(k, v)
+                }
+                if extra_annotations:
+                    try:
+                        return self._resolve_by_init_and_annotations(
+                            context, extra_annotations
+                        )
+                    except RecursionError:
+                        raise CircularDependencyException(chain[0], concrete_type)
 
         try:
             return self._resolve_by_init_method(context)
