@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-03-??
+## [2.1.0] - 2026-03-08 :woman:
 
 - Improve `resolve()` typing, by @sobolevn.
 - Use `Self` type for Container, by @sobolevn.
@@ -35,6 +35,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Resolves [issue #43](https://github.com/Neoteroi/rodi/issues/43), reported by
   [@lucas-labs](https://github.com/lucas-labs).
+- Add support for the [decorator pattern](https://en.wikipedia.org/wiki/Decorator_pattern)
+  via `Container.decorate(base_type, decorator_type)`. The decorator class must have an
+  `__init__` parameter whose type annotation matches the registered type; that parameter
+  receives the inner service instance, while all other parameters are resolved from the
+  container as usual. Decorators can be chained by calling `decorate()` multiple times —
+  each call wraps the previous registration:
+
+  ```python
+  container.add_singleton(IGreeter, SimpleGreeter)
+  container.decorate(IGreeter, LoggingGreeter)     # wraps SimpleGreeter
+  container.decorate(IGreeter, CachingGreeter)     # wraps LoggingGreeter
+  # resolves as: CachingGreeter(LoggingGreeter(SimpleGreeter()))
+  ```
+
+  Resolves [issue #15](https://github.com/Neoteroi/rodi/issues/15), requested by @Eldar1205.
 
 ## [2.0.8] - 2025-04-12
 

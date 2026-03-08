@@ -23,3 +23,8 @@ from exact implementations of data access logic).
 ## example-03.py
 
 This example illustrates how to configure a singleton object.
+
+
+## example-04.py
+
+This example illustrates how to use the decorator pattern (available since `2.1.0`).

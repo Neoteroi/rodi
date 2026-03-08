@@ -327,3 +327,86 @@ class MixedAnnotationOverlapsInit:
 
     def __init__(self, dep1: MixedDep1) -> None:
         self.dep1 = dep1
+
+
+# Classes for testing the decorator pattern
+
+
+class IGreeter:
+    def greet(self, name: str) -> str:
+        raise NotImplementedError
+
+
+class SimpleGreeter(IGreeter):
+    def greet(self, name: str) -> str:
+        return f"Hello, {name}"
+
+
+class LoggingGreeter(IGreeter):
+    """Decorator that logs calls before delegating to the inner greeter."""
+
+    def __init__(self, inner: IGreeter) -> None:
+        self.inner = inner
+        self.calls: list = []
+
+    def greet(self, name: str) -> str:
+        self.calls.append(name)
+        return self.inner.greet(name)
+
+
+class ExclamatoryGreeter(IGreeter):
+    """Second decorator that adds an exclamation mark."""
+
+    def __init__(self, inner: IGreeter) -> None:
+        self.inner = inner
+
+    def greet(self, name: str) -> str:
+        return self.inner.greet(name) + "!"
+
+
+class Logger:
+    """A simple logger dependency for decorator tests."""
+
+    def __init__(self) -> None:
+        self.messages: list = []
+
+    def log(self, message: str) -> None:
+        self.messages.append(message)
+
+
+class GreeterWithExtraDep(IGreeter):
+    """Decorator that has both the decorated service and an additional dependency."""
+
+    def __init__(self, inner: IGreeter, logger: Logger) -> None:
+        self.inner = inner
+        self.logger = logger
+
+    def greet(self, name: str) -> str:
+        self.logger.log(f"greet({name})")
+        return self.inner.greet(name)
+
+
+class DecoratorNoMatchingParam(IGreeter):
+    """Decorator whose __init__ has no parameter matching IGreeter — invalid."""
+
+    def __init__(self, logger: Logger) -> None:
+        self.logger = logger
+
+    def greet(self, name: str) -> str:
+        return ""
+
+
+class LoggingGreeterWithClassProp(IGreeter):
+    """
+    Decorator with the decoratee in __init__ and an extra dependency as a
+    class-level annotation (property injection).
+    """
+
+    logger: Logger
+
+    def __init__(self, inner: IGreeter) -> None:
+        self.inner = inner
+
+    def greet(self, name: str) -> str:
+        self.logger.log(f"greet({name})")
+        return self.inner.greet(name)

@@ -209,6 +209,27 @@ class InvalidFactory(DIException):
         )
 
 
+class DecoratorRegistrationException(DIException):
+    """
+    Exception raised when registering a decorator fails, either because the base type
+    is not registered or because the decorator class has no parameter matching the
+    base type.
+    """
+
+    def __init__(self, base_type, decorator_type):
+        if decorator_type is None:
+            super().__init__(
+                f"Cannot register a decorator for type '{class_name(base_type)}': "
+                f"the type is not registered in the container."
+            )
+        else:
+            super().__init__(
+                f"Cannot register '{class_name(decorator_type)}' as a decorator for "
+                f"'{class_name(base_type)}': no __init__ parameter with a type "
+                f"annotation matching '{class_name(base_type)}' was found."
+            )
+
+
 class ServiceLifeStyle(Enum):
     TRANSIENT = 1
     SCOPED = 2
@@ -787,6 +808,143 @@ class FactoryResolver:
         return FactoryTypeProvider(self.concrete_type, self.factory)
 
 
+def _get_resolver_lifestyle(resolver) -> "ServiceLifeStyle":
+    """Returns the ServiceLifeStyle of a resolver, defaulting to SINGLETON."""
+    if isinstance(resolver, (DynamicResolver, FactoryResolver)):
+        return resolver.life_style
+    return ServiceLifeStyle.SINGLETON
+
+
+class DecoratorResolver:
+    """
+    Resolver that wraps an existing resolver with a decorator class. The decorator
+    must have an __init__ parameter whose type annotation matches (or is a supertype
+    of) the registered base type; that parameter receives the inner service instance.
+    All other __init__ parameters are resolved normally from the container.
+    """
+
+    __slots__ = (
+        "_base_type",
+        "_decorator_type",
+        "_inner_resolver",
+        "services",
+        "life_style",
+    )
+
+    def __init__(self, base_type, decorator_type, inner_resolver, services, life_style):
+        self._base_type = base_type
+        self._decorator_type = decorator_type
+        self._inner_resolver = inner_resolver
+        self.services = services
+        self.life_style = life_style
+
+    def _get_resolver(self, desired_type, context: ResolutionContext):
+        if desired_type in context.resolved:
+            return context.resolved[desired_type]
+        reg = self.services._map.get(desired_type)
+        assert (
+            reg is not None
+        ), f"A resolver for type {class_name(desired_type)} is not configured"
+        resolver = reg(context)
+        context.resolved[desired_type] = resolver
+        return resolver
+
+    def __call__(self, context: ResolutionContext):
+        inner_provider = self._inner_resolver(context)
+
+        sig = Signature.from_callable(self._decorator_type.__init__)
+        params = {
+            key: Dependency(key, value.annotation)
+            for key, value in sig.parameters.items()
+        }
+
+        globalns = dict(vars(sys.modules[self._decorator_type.__module__]))
+        globalns.update(_get_obj_globals(self._decorator_type))
+        try:
+            annotations = get_type_hints(
+                self._decorator_type.__init__,
+                globalns,
+                _get_obj_locals(self._decorator_type),
+            )
+            for key, value in params.items():
+                if key in annotations:
+                    value.annotation = annotations[key]
+        except Exception:
+            pass
+
+        fns = []
+        decoratee_found = False
+
+        for param_name, dep in params.items():
+            if param_name in ("self", "args", "kwargs"):
+                continue
+
+            annotation = dep.annotation
+            if (
+                annotation is not _empty
+                and isclass(annotation)
+                and annotation is not object
+                and issubclass(self._base_type, annotation)
+            ):
+                fns.append(inner_provider)
+                decoratee_found = True
+            else:
+                if annotation is _empty or annotation not in self.services._map:
+                    raise CannotResolveParameterException(
+                        param_name, self._decorator_type
+                    )
+                fns.append(self._get_resolver(annotation, context))
+
+        if not decoratee_found:
+            raise DecoratorRegistrationException(self._base_type, self._decorator_type)
+
+        # Also resolve class-level annotations (property injection), excluding any
+        # names already covered by __init__ params or ClassVar / pre-initialised attrs.
+        init_param_names = set(params.keys())
+        annotation_resolvers: dict[str, Callable] = {}
+
+        if self._decorator_type.__annotations__:
+            class_hints = get_type_hints(
+                self._decorator_type,
+                {
+                    **dict(vars(sys.modules[self._decorator_type.__module__])),
+                    **_get_obj_globals(self._decorator_type),
+                },
+                _get_obj_locals(self._decorator_type),
+            )
+            for attr_name, attr_type in class_hints.items():
+                if attr_name in init_param_names:
+                    continue
+                is_classvar = getattr(attr_type, "__origin__", None) is ClassVar
+                is_initialized = (
+                    getattr(self._decorator_type, attr_name, None) is not None
+                )
+                if is_classvar or is_initialized:
+                    continue
+                if attr_type not in self.services._map:
+                    raise CannotResolveParameterException(
+                        attr_name, self._decorator_type
+                    )
+                annotation_resolvers[attr_name] = self._get_resolver(attr_type, context)
+
+        decorator_type = self._decorator_type
+
+        if annotation_resolvers:
+
+            def factory(context, parent_type):
+                instance = decorator_type(*[fn(context, parent_type) for fn in fns])
+                for name, resolver in annotation_resolvers.items():
+                    setattr(instance, name, resolver(context, parent_type))
+                return instance
+
+        else:
+
+            def factory(context, parent_type):
+                return decorator_type(*[fn(context, parent_type) for fn in fns])
+
+        return FactoryResolver(decorator_type, factory, self.life_style)(context)
+
+
 first_cap_re = re.compile("(.)([A-Z][a-z]+)")
 all_cap_re = re.compile("([a-z0-9])([A-Z])")
 
@@ -1226,6 +1384,38 @@ class Container(ContainerProtocol):
             return self._add_exact_transient(base_type)
 
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
+
+    def decorate(
+        self: _ContainerSelf,
+        base_type: Type,
+        decorator_type: Type,
+    ) -> _ContainerSelf:
+        """
+        Registers a decorator for an already-registered type. The decorator wraps the
+        existing service: when base_type is resolved, the decorator instance is returned
+        with the inner service injected as the decorated dependency.
+
+        The decorator class must have an __init__ parameter whose type annotation is
+        base_type (or a supertype of it); that parameter receives the inner service.
+        All other __init__ parameters are resolved from the container as usual.
+
+        Calling decorate() multiple times for the same type chains the decorators —
+        each wrapping the previous one (last registered = outermost decorator).
+
+        :param base_type: the type being decorated (must already be registered)
+        :param decorator_type: the decorator class
+        :return: the service collection itself
+        """
+        existing = self._map.get(base_type)
+        if existing is None:
+            raise DecoratorRegistrationException(base_type, None)
+        life_style = _get_resolver_lifestyle(existing)
+        self._map[base_type] = DecoratorResolver(
+            base_type, decorator_type, existing, self, life_style
+        )
+        if self._provider is not None:
+            self._provider = None
+        return self
 
     def _add_exact_singleton(
         self: _ContainerSelf, concrete_type: Type
