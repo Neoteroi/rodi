@@ -1101,7 +1101,9 @@ class Container(ContainerProtocol):
 
         return self.bind_types(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
 
-    def _add_exact_singleton(self: _ContainerSelf, concrete_type: Type) -> _ContainerSelf:
+    def _add_exact_singleton(
+        self: _ContainerSelf, concrete_type: Type
+    ) -> _ContainerSelf:
         """
         Registers an exact type, to be instantiated with singleton lifetime.
 
@@ -1128,7 +1130,9 @@ class Container(ContainerProtocol):
         )
         return self
 
-    def _add_exact_transient(self: _ContainerSelf, concrete_type: Type) -> _ContainerSelf:
+    def _add_exact_transient(
+        self: _ContainerSelf, concrete_type: Type
+    ) -> _ContainerSelf:
         """
         Registers an exact type, to be instantiated with transient lifetime.
 
