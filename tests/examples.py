@@ -287,7 +287,10 @@ class MixedNoInitArgs:
 
 
 class MixedWithInitArgs:
-    """Has a custom __init__ with injectable args, plus additional class-level annotations."""
+    """
+    Has a custom __init__ with injectable args, plus additional class-level
+    annotations.
+    """
 
     extra: MixedDep2
 

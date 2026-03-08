@@ -696,8 +696,7 @@ class DynamicResolver:
         init_fns = self._get_resolvers_for_parameters(concrete_type, context, params)
 
         ann_params = {
-            key: Dependency(key, value)
-            for key, value in extra_annotations.items()
+            key: Dependency(key, value) for key, value in extra_annotations.items()
         }
         ann_fns = self._get_resolvers_for_parameters(concrete_type, context, ann_params)
         annotation_resolvers = {
@@ -746,8 +745,7 @@ class DynamicResolver:
             extra_annotations = {
                 k: v
                 for k, v in class_annotations.items()
-                if k not in init_param_names
-                and not self._ignore_class_attribute(k, v)
+                if k not in init_param_names and not self._ignore_class_attribute(k, v)
             }
             if extra_annotations:
                 try:
