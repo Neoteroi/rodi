@@ -2760,3 +2760,51 @@ async def test_nested_scope_async_1():
         nested_scope_async(),
         nested_scope_async(),
     )
+
+
+# Tests for inject(globalsns=...) being honoured during type resolution (#60)
+
+
+def test_inject_globalsns_honoured_for_annotation_resolution():
+    """
+    When a class uses a forward reference in a class-level annotation and the
+    type is provided via inject(globalsns=...), it should be resolved correctly.
+    """
+
+    class LocalDep:
+        pass
+
+    @inject(globalsns={"LocalDep": LocalDep})
+    class Service:
+        dep: "LocalDep"
+
+    container = Container()
+    container.add_transient(LocalDep)
+    container.add_transient(Service)
+    provider = container.build_provider()
+
+    instance = provider.get(Service)
+    assert isinstance(instance.dep, LocalDep)
+
+
+def test_inject_globalsns_honoured_for_init_resolution():
+    """
+    When a class uses a forward reference in __init__ and the type is provided
+    via inject(globalsns=...), it should be resolved correctly.
+    """
+
+    class LocalDep:
+        pass
+
+    @inject(globalsns={"LocalDep": LocalDep})
+    class Service:
+        def __init__(self, dep: "LocalDep") -> None:
+            self.dep = dep
+
+    container = Container()
+    container.add_transient(LocalDep)
+    container.add_transient(Service)
+    provider = container.build_provider()
+
+    instance = provider.get(Service)
+    assert isinstance(instance.dep, LocalDep)

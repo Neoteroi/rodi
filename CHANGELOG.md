@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improve `resolve()` typing, by @sobolevn.
 - Use `Self` type for Container, by @sobolevn.
 - Improve typing of `inject`, by @sobolevn.
+- Do not ignore _globalns that is set via `inject()`, by @sobolevn. Address an inconsistency: `inject(globalsns=...)` silently had no effect during class/init resolution even though the parameter was
+  stored — users passing a custom `globalsns` would get no error but also no result. The factory path already honoured it, so this brings the two resolution paths into
+  parity.
 - Drop support for Python <= 3.10.
 - Add Python 3.14 to the build matrix and to classifiers.
 - Remove Codecov from GitHub Workflow and from README.
