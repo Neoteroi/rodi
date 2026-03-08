@@ -733,7 +733,8 @@ class DynamicResolver:
                 concrete_type, _get_plain_class_factory(concrete_type), self.life_style
             )(context)
 
-        # Custom __init__: also check for class-level annotations to inject as properties
+        # Custom __init__: also check for class-level annotations to inject as
+        # properties
         class_annotations = get_type_hints(
             concrete_type,
             vars(sys.modules[concrete_type.__module__]),
