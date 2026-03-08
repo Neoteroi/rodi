@@ -463,6 +463,28 @@ def get_annotations_type_provider(
     return FactoryResolver(concrete_type, factory, life_style)(resolver_context)
 
 
+def get_mixed_type_provider(
+    concrete_type: Type,
+    args_callbacks: list,
+    annotation_resolvers: Mapping[str, Callable],
+    life_style: ServiceLifeStyle,
+    resolver_context: ResolutionContext,
+):
+    """
+    Provider that combines __init__ argument injection with class-level annotation
+    property injection. Used when a class defines both a custom __init__ (with or
+    without parameters) and class-level annotated attributes.
+    """
+
+    def factory(context, parent_type):
+        instance = concrete_type(*[fn(context, parent_type) for fn in args_callbacks])
+        for name, resolver in annotation_resolvers.items():
+            setattr(instance, name, resolver(context, parent_type))
+        return instance
+
+    return FactoryResolver(concrete_type, factory, life_style)(resolver_context)
+
+
 def _get_plain_class_factory(concrete_type: Type):
     def factory(*args):
         return concrete_type()
@@ -645,6 +667,48 @@ class DynamicResolver:
             self.concrete_type, resolvers, self.life_style, context
         )
 
+    def _resolve_by_init_and_annotations(
+        self, context: ResolutionContext, extra_annotations: dict[str, Type]
+    ):
+        """
+        Resolves by both __init__ parameters and class-level annotated properties.
+        Used when a class defines a custom __init__ AND class-level type annotations.
+        The __init__ parameters are injected as constructor arguments; the class
+        annotations are injected via setattr after instantiation.
+        """
+        sig = Signature.from_callable(self.concrete_type.__init__)
+        params = {
+            key: Dependency(key, value.annotation)
+            for key, value in sig.parameters.items()
+        }
+
+        if sys.version_info >= (3, 10):  # pragma: no cover
+            globalns = dict(vars(sys.modules[self.concrete_type.__module__]))
+            globalns.update(_get_obj_globals(self.concrete_type))
+            annotations = get_type_hints(
+                self.concrete_type.__init__,
+                globalns,
+                _get_obj_locals(self.concrete_type),
+            )
+            for key, value in params.items():
+                if key in annotations:
+                    value.annotation = annotations[key]
+
+        concrete_type = self.concrete_type
+        init_fns = self._get_resolvers_for_parameters(concrete_type, context, params)
+
+        ann_params = {
+            key: Dependency(key, value) for key, value in extra_annotations.items()
+        }
+        ann_fns = self._get_resolvers_for_parameters(concrete_type, context, ann_params)
+        annotation_resolvers = {
+            name: ann_fns[i] for i, name in enumerate(ann_params.keys())
+        }
+
+        return get_mixed_type_provider(
+            concrete_type, init_fns, annotation_resolvers, self.life_style, context
+        )
+
     def __call__(self, context: ResolutionContext):
         concrete_type = self.concrete_type
 
@@ -669,6 +733,35 @@ class DynamicResolver:
             return FactoryResolver(
                 concrete_type, _get_plain_class_factory(concrete_type), self.life_style
             )(context)
+
+        # Custom __init__: also check for class-level annotations to inject as
+        # properties. The cheap __annotations__ check avoids the expensive
+        # get_type_hints call for the common case of no class-level annotations.
+        if concrete_type.__annotations__:
+            class_annotations = get_type_hints(
+                concrete_type,
+                {
+                    **dict(vars(sys.modules[concrete_type.__module__])),
+                    **_get_obj_globals(concrete_type),
+                },
+                _get_obj_locals(concrete_type),
+            )
+            if class_annotations:
+                sig = Signature.from_callable(concrete_type.__init__)
+                init_param_names = set(sig.parameters.keys()) - {"self"}
+                extra_annotations = {
+                    k: v
+                    for k, v in class_annotations.items()
+                    if k not in init_param_names
+                    and not self._ignore_class_attribute(k, v)
+                }
+                if extra_annotations:
+                    try:
+                        return self._resolve_by_init_and_annotations(
+                            context, extra_annotations
+                        )
+                    except RecursionError:
+                        raise CircularDependencyException(chain[0], concrete_type)
 
         try:
             return self._resolve_by_init_method(context)

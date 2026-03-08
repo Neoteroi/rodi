@@ -264,3 +264,66 @@ class PrecedenceOfTypeHintsOverNames:
     def __init__(self, foo: Q, ko: P):
         self.q = foo
         self.p = ko
+
+
+# Classes for testing mixed __init__ + class annotation injection
+
+
+class MixedDep1:
+    pass
+
+
+class MixedDep2:
+    pass
+
+
+class MixedNoInitArgs:
+    """Has a custom __init__ with no injectable args, plus class-level annotations."""
+
+    injected: MixedDep1
+
+    def __init__(self) -> None:
+        self.value = "hello"
+
+
+class MixedWithInitArgs:
+    """
+    Has a custom __init__ with injectable args, plus additional class-level
+    annotations.
+    """
+
+    extra: MixedDep2
+
+    def __init__(self, dep1: MixedDep1) -> None:
+        self.dep1 = dep1
+        self.value = "hello"
+
+
+class MixedSingleton:
+    """Singleton variant for mixed injection."""
+
+    dep2: MixedDep2
+
+    def __init__(self, dep1: MixedDep1) -> None:
+        self.dep1 = dep1
+
+
+class MixedScoped:
+    """Scoped variant for mixed injection."""
+
+    dep2: MixedDep2
+
+    def __init__(self, dep1: MixedDep1) -> None:
+        self.dep1 = dep1
+
+
+class MixedAnnotationOverlapsInit:
+    """
+    Class where a class annotation name matches an __init__ parameter.
+    The annotation should NOT be double-injected; init param takes precedence.
+    """
+
+    dep1: MixedDep1  # same name as __init__ param - should be handled by init only
+
+    def __init__(self, dep1: MixedDep1) -> None:
+        self.dep1 = dep1

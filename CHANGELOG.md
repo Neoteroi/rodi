@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2025-11-24 :notes:
+## [2.1.0] - 2026-03-??
 
 - Improve `resolve()` typing, by @sobolevn.
 - Use `Self` type for Container, by @sobolevn.
@@ -18,6 +18,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove Codecov from GitHub Workflow and from README.
 - Upgrade type annotations to Python >= 3.10.
 - Remove code checks for Python <= 3.10.
+- Support mixing `__init__` parameters and class-level annotated properties for
+  dependency injection. Previously, when a class defined a custom `__init__`,
+  rodi would only inspect constructor parameters and ignore class-level type
+  annotations. Now both are resolved: constructor parameters are injected as
+  arguments, and any remaining class-level annotated properties are injected via
+  `setattr` after instantiation. This enables patterns like:
+
+  ```python
+  class MyService:
+      extra_dep: ExtraDependency  # injected via setattr
+
+      def __init__(self, main_dep: MainDependency) -> None:
+          self.main_dep = main_dep
+  ```
+
+  Resolves [issue #43](https://github.com/Neoteroi/rodi/issues/43), reported by
+  [@lucas-labs](https://github.com/lucas-labs).
 
 ## [2.0.8] - 2025-04-12
 
