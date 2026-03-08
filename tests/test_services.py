@@ -28,6 +28,7 @@ from rodi import (
     CircularDependencyException,
     Container,
     ContainerProtocol,
+    DecoratorRegistrationException,
     DynamicResolver,
     FactoryMissingContextException,
     InstanceResolver,
@@ -90,6 +91,14 @@ from tests.examples import (
     X,
     Y,
     Z,
+    # decorator pattern examples
+    DecoratorNoMatchingParam,
+    ExclamatoryGreeter,
+    GreeterWithExtraDep,
+    IGreeter,
+    Logger,
+    LoggingGreeter,
+    SimpleGreeter,
 )
 
 T_1 = TypeVar("T_1")
@@ -2912,3 +2921,122 @@ def test_mixed_annotation_overlaps_init_param():
 
     instance = provider.get(MixedAnnotationOverlapsInit)
     assert isinstance(instance.dep1, MixedDep1)
+
+
+# Tests for the decorator pattern (issue #15)
+
+
+def test_decorator_basic_transient():
+    """Basic decorator wrapping: resolving IGreeter returns the decorator instance."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.decorate(IGreeter, LoggingGreeter)
+    provider = container.build_provider()
+
+    instance = provider.get(IGreeter)
+    assert isinstance(instance, LoggingGreeter)
+    assert isinstance(instance.inner, SimpleGreeter)
+    assert instance.greet("World") == "Hello, World"
+    assert instance.calls == ["World"]
+
+
+def test_decorator_transient_new_instance_each_time():
+    """Each resolve of a transient-decorated type gives a fresh decorator instance."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.decorate(IGreeter, LoggingGreeter)
+    provider = container.build_provider()
+
+    a = provider.get(IGreeter)
+    b = provider.get(IGreeter)
+    assert a is not b
+    assert a.inner is not b.inner
+
+
+def test_decorator_singleton():
+    """Decorator respects singleton lifetime — same instance returned every time."""
+    container = Container()
+    container.add_singleton(IGreeter, SimpleGreeter)
+    container.decorate(IGreeter, LoggingGreeter)
+    provider = container.build_provider()
+
+    a = provider.get(IGreeter)
+    b = provider.get(IGreeter)
+    assert a is b
+    assert isinstance(a, LoggingGreeter)
+    assert isinstance(a.inner, SimpleGreeter)
+
+
+def test_decorator_scoped():
+    """Decorator respects scoped lifetime — same instance within a scope."""
+    container = Container()
+    container.add_scoped(IGreeter, SimpleGreeter)
+    container.decorate(IGreeter, LoggingGreeter)
+    provider = container.build_provider()
+
+    with provider.create_scope() as scope:
+        a = provider.get(IGreeter, scope)
+        b = provider.get(IGreeter, scope)
+        assert a is b
+        assert isinstance(a, LoggingGreeter)
+
+    with provider.create_scope() as scope2:
+        c = provider.get(IGreeter, scope2)
+        assert c is not a
+
+
+def test_decorator_with_additional_dependency():
+    """Decorator that has both the inner service and another injected dependency."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.add_transient(Logger)
+    container.decorate(IGreeter, GreeterWithExtraDep)
+    provider = container.build_provider()
+
+    instance = provider.get(IGreeter)
+    assert isinstance(instance, GreeterWithExtraDep)
+    assert isinstance(instance.inner, SimpleGreeter)
+    assert isinstance(instance.logger, Logger)
+    instance.greet("Alice")
+    assert instance.logger.messages == ["greet(Alice)"]
+
+
+def test_decorator_chaining():
+    """Multiple decorate() calls chain decorators outermost-last."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.decorate(IGreeter, LoggingGreeter)
+    container.decorate(IGreeter, ExclamatoryGreeter)
+    provider = container.build_provider()
+
+    instance = provider.get(IGreeter)
+    # Resolution: ExclamatoryGreeter(LoggingGreeter(SimpleGreeter()))
+    assert isinstance(instance, ExclamatoryGreeter)
+    assert isinstance(instance.inner, LoggingGreeter)
+    assert isinstance(instance.inner.inner, SimpleGreeter)
+    assert instance.greet("Bob") == "Hello, Bob!"
+
+
+def test_decorator_error_base_type_not_registered():
+    """decorate() raises when the base type is not registered."""
+    container = Container()
+    with raises(DecoratorRegistrationException):
+        container.decorate(IGreeter, LoggingGreeter)
+
+
+def test_decorator_error_no_matching_param():
+    """build_provider() raises when the decorator has no parameter matching base type."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.add_transient(Logger)
+    container.decorate(IGreeter, DecoratorNoMatchingParam)
+    with raises(DecoratorRegistrationException):
+        container.build_provider()
+
+
+def test_decorator_fluent_chaining():
+    """decorate() returns self for fluent chaining."""
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    result = container.decorate(IGreeter, LoggingGreeter)
+    assert result is container
