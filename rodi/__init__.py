@@ -823,7 +823,13 @@ class DecoratorResolver:
     All other __init__ parameters are resolved normally from the container.
     """
 
-    __slots__ = ("_base_type", "_decorator_type", "_inner_resolver", "services", "life_style")
+    __slots__ = (
+        "_base_type",
+        "_decorator_type",
+        "_inner_resolver",
+        "services",
+        "life_style",
+    )
 
     def __init__(self, base_type, decorator_type, inner_resolver, services, life_style):
         self._base_type = base_type
@@ -910,7 +916,9 @@ class DecoratorResolver:
                 if attr_name in init_param_names:
                     continue
                 is_classvar = getattr(attr_type, "__origin__", None) is ClassVar
-                is_initialized = getattr(self._decorator_type, attr_name, None) is not None
+                is_initialized = (
+                    getattr(self._decorator_type, attr_name, None) is not None
+                )
                 if is_classvar or is_initialized:
                     continue
                 if attr_type not in self.services._map:
@@ -922,12 +930,15 @@ class DecoratorResolver:
         decorator_type = self._decorator_type
 
         if annotation_resolvers:
+
             def factory(context, parent_type):
                 instance = decorator_type(*[fn(context, parent_type) for fn in fns])
                 for name, resolver in annotation_resolvers.items():
                     setattr(instance, name, resolver(context, parent_type))
                 return instance
+
         else:
+
             def factory(context, parent_type):
                 return decorator_type(*[fn(context, parent_type) for fn in fns])
 

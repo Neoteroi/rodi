@@ -43,7 +43,7 @@ from rodi import (
     inject,
     to_standard_param_name,
 )
-from tests.examples import (
+from tests.examples import (  # decorator pattern examples
     A,
     B,
     C,
@@ -51,20 +51,26 @@ from tests.examples import (
     CatsController,
     Circle,
     Circle2,
+    DecoratorNoMatchingParam,
+    ExclamatoryGreeter,
     Foo,
     FooByParamName,
     FooDBCatsRepository,
     FooDBContext,
     GetCatRequestHandler,
+    GreeterWithExtraDep,
     IByParamName,
     ICatsRepository,
     ICircle,
     IdGetter,
+    IGreeter,
     InMemoryCatsRepository,
     IRequestContext,
     Jang,
     Jing,
     Ko,
+    Logger,
+    LoggingGreeter,
     MixedAnnotationOverlapsInit,
     MixedDep1,
     MixedDep2,
@@ -81,6 +87,7 @@ from tests.examples import (
     ResolveThisByParameterName,
     ServiceSettings,
     Shape,
+    SimpleGreeter,
     TrickyCircle,
     TypeWithOptional,
     UfoFour,
@@ -91,14 +98,6 @@ from tests.examples import (
     X,
     Y,
     Z,
-    # decorator pattern examples
-    DecoratorNoMatchingParam,
-    ExclamatoryGreeter,
-    GreeterWithExtraDep,
-    IGreeter,
-    Logger,
-    LoggingGreeter,
-    SimpleGreeter,
 )
 
 T_1 = TypeVar("T_1")
@@ -3025,7 +3024,9 @@ def test_decorator_error_base_type_not_registered():
 
 
 def test_decorator_error_no_matching_param():
-    """build_provider() raises when the decorator has no parameter matching base type."""
+    """
+    build_provider() raises when the decorator has no parameter matching base type.
+    """
     container = Container()
     container.add_transient(IGreeter, SimpleGreeter)
     container.add_transient(Logger)
