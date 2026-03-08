@@ -3040,3 +3040,24 @@ def test_decorator_fluent_chaining():
     container.add_transient(IGreeter, SimpleGreeter)
     result = container.decorate(IGreeter, LoggingGreeter)
     assert result is container
+
+
+def test_decorator_class_property_injection():
+    """
+    Decorator with the decoratee in __init__ and an extra dep as a class annotation:
+    both should be injected (constructor injection + setattr).
+    """
+    from tests.examples import LoggingGreeterWithClassProp
+
+    container = Container()
+    container.add_transient(IGreeter, SimpleGreeter)
+    container.add_transient(Logger)
+    container.decorate(IGreeter, LoggingGreeterWithClassProp)
+    provider = container.build_provider()
+
+    instance = provider.get(IGreeter)
+    assert isinstance(instance, LoggingGreeterWithClassProp)
+    assert isinstance(instance.inner, SimpleGreeter)
+    assert isinstance(instance.logger, Logger)
+    instance.greet("Alice")
+    assert instance.logger.messages == ["greet(Alice)"]

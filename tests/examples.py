@@ -394,3 +394,19 @@ class DecoratorNoMatchingParam(IGreeter):
 
     def greet(self, name: str) -> str:
         return ""
+
+
+class LoggingGreeterWithClassProp(IGreeter):
+    """
+    Decorator with the decoratee in __init__ and an extra dependency as a
+    class-level annotation (property injection).
+    """
+
+    logger: Logger
+
+    def __init__(self, inner: IGreeter) -> None:
+        self.inner = inner
+
+    def greet(self, name: str) -> str:
+        self.logger.log(f"greet({name})")
+        return self.inner.greet(name)

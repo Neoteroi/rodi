@@ -892,10 +892,44 @@ class DecoratorResolver:
         if not decoratee_found:
             raise DecoratorRegistrationException(self._base_type, self._decorator_type)
 
+        # Also resolve class-level annotations (property injection), excluding any
+        # names already covered by __init__ params or ClassVar / pre-initialised attrs.
+        init_param_names = set(params.keys())
+        annotation_resolvers: dict[str, Callable] = {}
+
+        if self._decorator_type.__annotations__:
+            class_hints = get_type_hints(
+                self._decorator_type,
+                {
+                    **dict(vars(sys.modules[self._decorator_type.__module__])),
+                    **_get_obj_globals(self._decorator_type),
+                },
+                _get_obj_locals(self._decorator_type),
+            )
+            for attr_name, attr_type in class_hints.items():
+                if attr_name in init_param_names:
+                    continue
+                is_classvar = getattr(attr_type, "__origin__", None) is ClassVar
+                is_initialized = getattr(self._decorator_type, attr_name, None) is not None
+                if is_classvar or is_initialized:
+                    continue
+                if attr_type not in self.services._map:
+                    raise CannotResolveParameterException(
+                        attr_name, self._decorator_type
+                    )
+                annotation_resolvers[attr_name] = self._get_resolver(attr_type, context)
+
         decorator_type = self._decorator_type
 
-        def factory(context, parent_type):
-            return decorator_type(*[fn(context, parent_type) for fn in fns])
+        if annotation_resolvers:
+            def factory(context, parent_type):
+                instance = decorator_type(*[fn(context, parent_type) for fn in fns])
+                for name, resolver in annotation_resolvers.items():
+                    setattr(instance, name, resolver(context, parent_type))
+                return instance
+        else:
+            def factory(context, parent_type):
+                return decorator_type(*[fn(context, parent_type) for fn in fns])
 
         return FactoryResolver(decorator_type, factory, self.life_style)(context)
 
