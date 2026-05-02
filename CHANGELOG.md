@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Add opt-in support for context-managed services via the `manage_context=True`
+  flag on `add_scoped`, `add_transient`, `add_scoped_by_factory`,
+  `add_transient_by_factory`, `register`, `register_factory` and `bind_types`.
+  When set, rodi enters the resolved instance as a context manager and exits it
+  in LIFO order when the owning `ActivationScope` ends. Default is `False`, so
+  existing behavior is preserved.
+- Add `AsyncActivationScope`, `Services.create_async_scope` and
+  `Services.aget` / `AsyncActivationScope.aget` to manage async context
+  managers (`__aenter__` / `__aexit__`) and mixed sync/async dependency graphs.
+  Sync and async managed instances entered through the same `AsyncActivationScope`
+  share a single `AsyncExitStack`, so cross-protocol exit order is strictly LIFO
+  regardless of whether each instance was resolved via `get` or `aget`.
+- Add `AsyncContainerProtocol` and `Container.aresolve(obj_type, scope)` as the
+  async counterpart to `Container.resolve`. `aresolve` requires an explicit
+  `AsyncActivationScope` and raises `TypeError` otherwise, so frameworks that
+  integrate rodi's async support get a single, framework-facing entry point
+  without having to reach into `AsyncActivationScope.aget` directly. The
+  existing `ContainerProtocol` is unchanged; sync-only containers and
+  third-party implementations remain compatible.
+- Reject `manage_context=True` for `SINGLETON` services with a new
+  `InvalidContextManagerRegistration` exception. Singleton lifecycle hooks are
+  intentionally out of scope; track that follow-up separately.
+
 ## [2.1.0] - 2026-03-08 :woman:
 
 - Improve `resolve()` typing, by @sobolevn.

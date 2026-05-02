@@ -3,6 +3,7 @@ import inspect
 import re
 import sys
 from collections import defaultdict
+from contextlib import AsyncExitStack, ExitStack
 from enum import Enum
 from inspect import Signature, _empty, isabstract, isclass, iscoroutinefunction
 from typing import (
@@ -47,6 +48,27 @@ class ContainerProtocol(Protocol):
     def __contains__(self, item) -> bool:
         """
         Returns a value indicating whether a given type is configured in this container.
+        """
+
+
+class AsyncContainerProtocol(Protocol):
+    """
+    Optional interface for DI containers that support asynchronous resolution
+    of context-managed services. Implementing this is opt-in; sync-only
+    containers continue to satisfy `ContainerProtocol` alone.
+    """
+
+    @overload
+    async def aresolve(self, obj_type: Type[T], *args, **kwargs) -> T: ...
+
+    @overload
+    async def aresolve(self, obj_type: str, *args, **kwargs) -> Any: ...
+
+    async def aresolve(self, obj_type: Type[T] | str, *args, **kwargs) -> Any:
+        """
+        Activates an instance of the given type asynchronously, entering and
+        exiting any sync or async context managers in the resolved dependency
+        graph through the supplied scope.
         """
 
 
@@ -230,6 +252,17 @@ class DecoratorRegistrationException(DIException):
             )
 
 
+class InvalidContextManagerRegistration(DIException):
+    """Exception raised when manage_context is used with an unsupported lifestyle."""
+
+    def __init__(self, concrete_type):
+        super().__init__(
+            f"manage_context=True is not supported for SINGLETON services "
+            f"('{class_name(concrete_type)}'). Use SCOPED or TRANSIENT, or manage "
+            f"the context manually."
+        )
+
+
 class ServiceLifeStyle(Enum):
     TRANSIENT = 1
     SCOPED = 2
@@ -247,7 +280,7 @@ def _get_factory_annotations_or_throw(factory):
 
 
 class ActivationScope:
-    __slots__ = ("scoped_services", "provider")
+    __slots__ = ("scoped_services", "provider", "_exit_stack")
 
     def __init__(
         self,
@@ -256,6 +289,7 @@ class ActivationScope:
     ):
         self.provider = provider or Services()
         self.scoped_services = scoped_services or {}
+        self._exit_stack: ExitStack | None = None
 
     def __enter__(self):
         if self.scoped_services is None:
@@ -263,6 +297,9 @@ class ActivationScope:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._exit_stack is not None:
+            exit_stack, self._exit_stack = self._exit_stack, None
+            exit_stack.__exit__(exc_type, exc_val, exc_tb)
         self.dispose()
 
     def get(
@@ -275,6 +312,25 @@ class ActivationScope:
         if self.provider is None:
             raise TypeError("This scope is disposed.")
         return self.provider.get(desired_type, scope or self, default=default)
+
+    def _enter_context(self, instance):
+        if not (hasattr(instance, "__enter__") and hasattr(instance, "__exit__")):
+            if hasattr(instance, "__aenter__") and hasattr(instance, "__aexit__"):
+                raise TypeError(
+                    f"{type(instance).__name__} is registered with manage_context=True "
+                    f"but does not implement the synchronous context manager protocol. "
+                    f"Use AsyncActivationScope to manage async context managers."
+                )
+            raise TypeError(
+                f"{type(instance).__name__} is registered with manage_context=True "
+                f"but does not implement the context manager protocol. "
+            )
+        self._register_sync_context(instance)
+
+    def _register_sync_context(self, instance):
+        if self._exit_stack is None:
+            self._exit_stack = ExitStack()
+        self._exit_stack.enter_context(instance)
 
     def dispose(self):
         if self.provider:
@@ -320,11 +376,84 @@ class TrackingActivationScope(ActivationScope):
         # Pop this scope from the stack
         stack = self._active_scopes.get()
         self._active_scopes.set(stack[:-1])
-        self.dispose()
+        super().__exit__(exc_type, exc_val, exc_tb)
 
     def dispose(self):
         if self.provider:
             self.provider = None
+
+
+class AsyncActivationScope(ActivationScope):
+    """
+    ActivationScope that supports both sync and async context-managed services.
+    Use `async with provider.create_async_scope() as scope` and
+    `await scope.aget(T)` to resolve services whose registrations use
+    `manage_context=True` and that implement `__aenter__`/`__aexit__`.
+    """
+
+    __slots__ = ("_async_exit_stack", "_async_mode", "_pending_aenter")
+
+    def __init__(self, provider=None, scoped_services=None):
+        super().__init__(provider, scoped_services)
+        self._async_exit_stack: AsyncExitStack | None = None
+        self._async_mode: bool = False
+        self._pending_aenter: list = []
+
+    async def __aenter__(self):
+        if self.scoped_services is None:
+            self.scoped_services = {}
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self._async_exit_stack is not None:
+            stack, self._async_exit_stack = self._async_exit_stack, None
+            await stack.__aexit__(exc_type, exc_val, exc_tb)
+        self.dispose()
+
+    def _enter_context(self, instance):
+        if self._async_mode:
+            self._pending_aenter.append(instance)
+        else:
+            super()._enter_context(instance)
+
+    def _register_sync_context(self, instance):
+        if self._async_exit_stack is None:
+            self._async_exit_stack = AsyncExitStack()
+        self._async_exit_stack.enter_context(instance)
+
+    async def aget(
+        self,
+        desired_type: Type[T] | str,
+        *,
+        default: Any = ...,
+    ) -> T:
+        if self.provider is None:
+            raise TypeError("This scope is disposed.")
+
+        self._async_mode = True
+        try:
+            instance = self.provider.get(desired_type, self, default=default)
+        finally:
+            self._async_mode = False
+
+        if self._pending_aenter:
+            if self._async_exit_stack is None:
+                self._async_exit_stack = AsyncExitStack()
+
+            pending = self._pending_aenter
+            self._pending_aenter = []
+            for obj in pending:
+                if hasattr(obj, "__aenter__") and hasattr(obj, "__aexit__"):
+                    await self._async_exit_stack.enter_async_context(obj)
+                elif hasattr(obj, "__enter__") and hasattr(obj, "__exit__"):
+                    self._async_exit_stack.enter_context(obj)
+                else:
+                    raise TypeError(
+                        f"{type(obj).__name__} is registered with "
+                        f"manage_context=True but does not implement any "
+                        f"context manager protocol."
+                    )
+        return instance
 
 
 class ResolutionContext:
@@ -469,11 +598,40 @@ class SingletonTypeProvider:
         return self._instance
 
 
+class ManagedScopedProvider:
+    __slots__ = ("_type", "_inner")
+
+    def __init__(self, _type, inner):
+        self._type = _type
+        self._inner = inner
+
+    def __call__(self, context: ActivationScope, parent_type):
+        if self._type in context.scoped_services:
+            return context.scoped_services[self._type]
+        instance = self._inner(context, parent_type)
+        context._enter_context(instance)
+        context.scoped_services[self._type] = instance
+        return instance
+
+
+class ManagedTransientProvider:
+    __slots__ = ("_inner",)
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def __call__(self, context: ActivationScope, parent_type):
+        instance = self._inner(context, parent_type)
+        context._enter_context(instance)
+        return instance
+
+
 def get_annotations_type_provider(
     concrete_type: Type,
     resolvers: Mapping[str, Callable],
     life_style: ServiceLifeStyle,
     resolver_context: ResolutionContext,
+    manage_context: bool = False,
 ):
     def factory(context, parent_type):
         instance = concrete_type()
@@ -481,7 +639,9 @@ def get_annotations_type_provider(
             setattr(instance, name, resolver(context, parent_type))
         return instance
 
-    return FactoryResolver(concrete_type, factory, life_style)(resolver_context)
+    return FactoryResolver(concrete_type, factory, life_style, manage_context)(
+        resolver_context
+    )
 
 
 def get_mixed_type_provider(
@@ -490,6 +650,7 @@ def get_mixed_type_provider(
     annotation_resolvers: Mapping[str, Callable],
     life_style: ServiceLifeStyle,
     resolver_context: ResolutionContext,
+    manage_context: bool = False,
 ):
     """
     Provider that combines __init__ argument injection with class-level annotation
@@ -503,7 +664,9 @@ def get_mixed_type_provider(
             setattr(instance, name, resolver(context, parent_type))
         return instance
 
-    return FactoryResolver(concrete_type, factory, life_style)(resolver_context)
+    return FactoryResolver(concrete_type, factory, life_style, manage_context)(
+        resolver_context
+    )
 
 
 def _get_plain_class_factory(concrete_type: Type):
@@ -535,15 +698,19 @@ class Dependency:
 
 
 class DynamicResolver:
-    __slots__ = ("_concrete_type", "services", "life_style")
+    __slots__ = ("_concrete_type", "services", "life_style", "manage_context")
 
-    def __init__(self, concrete_type, services, life_style):
+    def __init__(self, concrete_type, services, life_style, manage_context=False):
         assert isclass(concrete_type)
         assert not isabstract(concrete_type)
+
+        if manage_context and life_style is ServiceLifeStyle.SINGLETON:
+            raise InvalidContextManagerRegistration(concrete_type)
 
         self._concrete_type = concrete_type
         self.services = services
         self.life_style = life_style
+        self.manage_context = manage_context
 
     @property
     def concrete_type(self) -> Type:
@@ -633,8 +800,14 @@ class DynamicResolver:
                 return SingletonTypeProvider(concrete_type, None)
 
             if self.life_style == ServiceLifeStyle.SCOPED:
+                if self.manage_context:
+                    return ManagedScopedProvider(
+                        concrete_type, TypeProvider(concrete_type)
+                    )
                 return ScopedTypeProvider(concrete_type)
 
+            if self.manage_context:
+                return ManagedTransientProvider(TypeProvider(concrete_type))
             return TypeProvider(concrete_type)
 
         fns = self._get_resolvers_for_parameters(concrete_type, context, params)
@@ -643,8 +816,14 @@ class DynamicResolver:
             return SingletonTypeProvider(concrete_type, fns)
 
         if self.life_style == ServiceLifeStyle.SCOPED:
+            if self.manage_context:
+                return ManagedScopedProvider(
+                    concrete_type, ArgsTypeProvider(concrete_type, fns)
+                )
             return ScopedArgsTypeProvider(concrete_type, fns)
 
+        if self.manage_context:
+            return ManagedTransientProvider(ArgsTypeProvider(concrete_type, fns))
         return ArgsTypeProvider(concrete_type, fns)
 
     def _ignore_class_attribute(self, key: str, value) -> bool:
@@ -685,7 +864,7 @@ class DynamicResolver:
             resolvers[name] = fns[i]
 
         return get_annotations_type_provider(
-            self.concrete_type, resolvers, self.life_style, context
+            self.concrete_type, resolvers, self.life_style, context, self.manage_context
         )
 
     def _resolve_by_init_and_annotations(
@@ -727,7 +906,12 @@ class DynamicResolver:
         }
 
         return get_mixed_type_provider(
-            concrete_type, init_fns, annotation_resolvers, self.life_style, context
+            concrete_type,
+            init_fns,
+            annotation_resolvers,
+            self.life_style,
+            context,
+            self.manage_context,
         )
 
     def __call__(self, context: ResolutionContext):
@@ -752,7 +936,10 @@ class DynamicResolver:
                     raise CircularDependencyException(chain[0], concrete_type)
 
             return FactoryResolver(
-                concrete_type, _get_plain_class_factory(concrete_type), self.life_style
+                concrete_type,
+                _get_plain_class_factory(concrete_type),
+                self.life_style,
+                self.manage_context,
             )(context)
 
         # Custom __init__: also check for class-level annotations to inject as
@@ -791,20 +978,32 @@ class DynamicResolver:
 
 
 class FactoryResolver:
-    __slots__ = ("concrete_type", "factory", "params", "life_style")
+    __slots__ = ("concrete_type", "factory", "params", "life_style", "manage_context")
 
-    def __init__(self, concrete_type, factory, life_style):
+    def __init__(self, concrete_type, factory, life_style, manage_context=False):
+        if manage_context and life_style is ServiceLifeStyle.SINGLETON:
+            raise InvalidContextManagerRegistration(concrete_type)
         self.factory = factory
         self.concrete_type = concrete_type
         self.life_style = life_style
+        self.manage_context = manage_context
 
     def __call__(self, context: ResolutionContext):
         if self.life_style == ServiceLifeStyle.SINGLETON:
             return SingletonFactoryTypeProvider(self.concrete_type, self.factory)
 
         if self.life_style == ServiceLifeStyle.SCOPED:
+            if self.manage_context:
+                return ManagedScopedProvider(
+                    self.concrete_type,
+                    FactoryTypeProvider(self.concrete_type, self.factory),
+                )
             return ScopedFactoryTypeProvider(self.concrete_type, self.factory)
 
+        if self.manage_context:
+            return ManagedTransientProvider(
+                FactoryTypeProvider(self.concrete_type, self.factory)
+            )
         return FactoryTypeProvider(self.concrete_type, self.factory)
 
 
@@ -988,6 +1187,11 @@ class Services:
     ) -> ActivationScope:
         return self._scope_cls(self, scoped)
 
+    def create_async_scope(
+        self, scoped: dict[Type | str, Any] | None = None
+    ) -> "AsyncActivationScope":
+        return AsyncActivationScope(self, scoped)
+
     def set(self, new_type: Type | str, value: Any):
         """
         Sets a new service of desired type, as singleton.
@@ -1036,6 +1240,21 @@ class Services:
             raise CannotResolveTypeException(desired_type)
 
         return cast(T, scoped_service or resolver(scope, desired_type))
+
+    async def aget(
+        self,
+        desired_type: Type[T] | str,
+        scope: "AsyncActivationScope | None" = None,
+        *,
+        default: Any = ...,
+    ) -> T:
+        """
+        Awaitable counterpart of `get` that supports async context-managed
+        services. Requires (and creates if missing) an `AsyncActivationScope`.
+        """
+        if scope is None:
+            scope = self.create_async_scope()
+        return await scope.aget(desired_type, default=default)
 
     def _get_getter(self, key, param):
         if param.annotation is _empty:
@@ -1130,7 +1349,7 @@ class FactoryWrapperContextArg:
 _ContainerSelf = TypeVar("_ContainerSelf", bound="Container")
 
 
-class Container(ContainerProtocol):
+class Container(ContainerProtocol, AsyncContainerProtocol):
     """
     Configuration class for a collection of services.
     """
@@ -1167,6 +1386,7 @@ class Container(ContainerProtocol):
         obj_type: Any,
         concrete_type: Any = None,
         life_style: ServiceLifeStyle = ServiceLifeStyle.TRANSIENT,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
         try:
             assert issubclass(concrete_type, obj_type), (
@@ -1176,7 +1396,10 @@ class Container(ContainerProtocol):
         except TypeError:
             # ignore, this happens with generic types
             pass
-        self._bind(obj_type, DynamicResolver(concrete_type, self, life_style))
+        self._bind(
+            obj_type,
+            DynamicResolver(concrete_type, self, life_style, manage_context),
+        )
         return self
 
     def register(
@@ -1190,14 +1413,16 @@ class Container(ContainerProtocol):
         """
         Registers a type in this container.
         """
+        manage_context = kwargs.pop("manage_context", False)
+
         if instance is not None:
             self.add_instance(instance, declared_class=obj_type)
             return self
 
         if sub_type is None:
-            self._add_exact_transient(obj_type)
+            self._add_exact_transient(obj_type, manage_context=manage_context)
         else:
-            self.add_transient(obj_type, sub_type)
+            self.add_transient(obj_type, sub_type, manage_context=manage_context)
         return self
 
     @overload
@@ -1229,6 +1454,45 @@ class Container(ContainerProtocol):
         Resolves a service by type, obtaining an instance of that type.
         """
         return self.provider.get(obj_type, scope=scope)
+
+    @overload
+    async def aresolve(
+        self,
+        obj_type: Type[T],
+        scope: AsyncActivationScope,
+        *args,
+        **kwargs,
+    ) -> T: ...
+
+    @overload
+    async def aresolve(
+        self,
+        obj_type: str,
+        scope: AsyncActivationScope,
+        *args,
+        **kwargs,
+    ) -> Any: ...
+
+    async def aresolve(
+        self,
+        obj_type: Type[T] | str,
+        scope: AsyncActivationScope,
+        *args,
+        **kwargs,
+    ) -> Any:
+        """
+        Asynchronous counterpart to `resolve`. Requires an explicit
+        `AsyncActivationScope` so that any sync or async context-managed
+        services in the resolved graph are entered into the scope's exit
+        stack and exited in LIFO order on `__aexit__`.
+        """
+        if not isinstance(scope, AsyncActivationScope):
+            raise TypeError(
+                "aresolve requires an AsyncActivationScope. Use `resolve` for "
+                "synchronous resolution, or pass an instance returned by "
+                "`provider.create_async_scope()`."
+            )
+        return await scope.aget(obj_type)
 
     def add_alias(
         self: _ContainerSelf,
@@ -1331,7 +1595,11 @@ class Container(ContainerProtocol):
         return self
 
     def add_singleton(
-        self: _ContainerSelf, base_type: Type, concrete_type: Type | None = None
+        self: _ContainerSelf,
+        base_type: Type,
+        concrete_type: Type | None = None,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
         """
         Registers a type by base type, to be instantiated with singleton lifetime.
@@ -1340,8 +1608,12 @@ class Container(ContainerProtocol):
         :param base_type: registered type. If a concrete type is provided, it must
         inherit the base type.
         :param concrete_type: concrete class
+        :param manage_context: not supported for singletons.
         :return: the service collection itself
         """
+        if manage_context:
+            raise InvalidContextManagerRegistration(concrete_type or base_type)
+
         if concrete_type is None:
             return self._add_exact_singleton(base_type)
 
@@ -1351,6 +1623,8 @@ class Container(ContainerProtocol):
         self: _ContainerSelf,
         base_type: Type,
         concrete_type: Type | None = None,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
         """
         Registers a type by base type, to be instantiated with scoped lifetime.
@@ -1359,17 +1633,23 @@ class Container(ContainerProtocol):
         :param base_type: registered type. If a concrete type is provided, it must
         inherit the base type.
         :param concrete_type: concrete class
+        :param manage_context: when True, rodi enters/exits the resolved instance
+        as a context manager bound to the activation scope.
         :return: the service collection itself
         """
         if concrete_type is None:
-            return self._add_exact_scoped(base_type)
+            return self._add_exact_scoped(base_type, manage_context=manage_context)
 
-        return self.bind_types(base_type, concrete_type, ServiceLifeStyle.SCOPED)
+        return self.bind_types(
+            base_type, concrete_type, ServiceLifeStyle.SCOPED, manage_context
+        )
 
     def add_transient(
         self: _ContainerSelf,
         base_type: Type,
         concrete_type: Type | None = None,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
         """
         Registers a type by base type, to be instantiated with transient lifetime.
@@ -1378,12 +1658,16 @@ class Container(ContainerProtocol):
         :param base_type: registered type. If a concrete type is provided, it must
         inherit the base type.
         :param concrete_type: concrete class
+        :param manage_context: when True, rodi enters/exits each resolved instance
+        as a context manager bound to the activation scope.
         :return: the service collection itself
         """
         if concrete_type is None:
-            return self._add_exact_transient(base_type)
+            return self._add_exact_transient(base_type, manage_context=manage_context)
 
-        return self.bind_types(base_type, concrete_type, ServiceLifeStyle.TRANSIENT)
+        return self.bind_types(
+            base_type, concrete_type, ServiceLifeStyle.TRANSIENT, manage_context
+        )
 
     def decorate(
         self: _ContainerSelf,
@@ -1433,7 +1717,12 @@ class Container(ContainerProtocol):
         )
         return self
 
-    def _add_exact_scoped(self: _ContainerSelf, concrete_type: Type) -> _ContainerSelf:
+    def _add_exact_scoped(
+        self: _ContainerSelf,
+        concrete_type: Type,
+        *,
+        manage_context: bool = False,
+    ) -> _ContainerSelf:
         """
         Registers an exact type, to be instantiated with scoped lifetime.
 
@@ -1442,12 +1731,18 @@ class Container(ContainerProtocol):
         """
         assert not isabstract(concrete_type)
         self._bind(
-            concrete_type, DynamicResolver(concrete_type, self, ServiceLifeStyle.SCOPED)
+            concrete_type,
+            DynamicResolver(
+                concrete_type, self, ServiceLifeStyle.SCOPED, manage_context
+            ),
         )
         return self
 
     def _add_exact_transient(
-        self: _ContainerSelf, concrete_type: Type
+        self: _ContainerSelf,
+        concrete_type: Type,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
         """
         Registers an exact type, to be instantiated with transient lifetime.
@@ -1458,7 +1753,9 @@ class Container(ContainerProtocol):
         assert not isabstract(concrete_type)
         self._bind(
             concrete_type,
-            DynamicResolver(concrete_type, self, ServiceLifeStyle.TRANSIENT),
+            DynamicResolver(
+                concrete_type, self, ServiceLifeStyle.TRANSIENT, manage_context
+            ),
         )
         return self
 
@@ -1474,16 +1771,24 @@ class Container(ContainerProtocol):
         self: _ContainerSelf,
         factory: FactoryCallableType,
         return_type: Type | None = None,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
-        self.register_factory(factory, return_type, ServiceLifeStyle.TRANSIENT)
+        self.register_factory(
+            factory, return_type, ServiceLifeStyle.TRANSIENT, manage_context
+        )
         return self
 
     def add_scoped_by_factory(
         self: _ContainerSelf,
         factory: FactoryCallableType,
         return_type: Type | None = None,
+        *,
+        manage_context: bool = False,
     ) -> _ContainerSelf:
-        self.register_factory(factory, return_type, ServiceLifeStyle.SCOPED)
+        self.register_factory(
+            factory, return_type, ServiceLifeStyle.SCOPED, manage_context
+        )
         return self
 
     @staticmethod
@@ -1508,6 +1813,7 @@ class Container(ContainerProtocol):
         factory: Callable,
         return_type: Type | None,
         life_style: ServiceLifeStyle,
+        manage_context: bool = False,
     ) -> None:
         if not callable(factory):
             raise InvalidFactory(return_type)
@@ -1526,7 +1832,10 @@ class Container(ContainerProtocol):
         self._bind(
             return_type,  # type: ignore
             FactoryResolver(
-                return_type, self._check_factory(factory, sign, return_type), life_style
+                return_type,
+                self._check_factory(factory, sign, return_type),
+                life_style,
+                manage_context,
             ),
         )
 
